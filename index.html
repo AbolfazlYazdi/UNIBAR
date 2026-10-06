@@ -18,6 +18,7 @@
 <script>
 async function loadUsers(){
   const box=document.getElementById("users");
+  if(location.protocol==="file:"){box.innerHTML='<div class="empty"><strong>سایت باید از طریق سرور باز شود</strong><span>با دابل‌کلیک روی فایل کار نمی‌کند. از GitHub Pages یا یک سرور محلی (python -m http.server) استفاده کن.</span></div>';return;}
   try{
     const r=await fetch("users/index.json?"+Date.now());
     if(!r.ok) throw new Error();
@@ -25,7 +26,7 @@ async function loadUsers(){
     if(!data.users?.length){box.innerHTML='<div class="empty"><strong>کاربری وجود ندارد</strong></div>';return;}
     box.innerHTML=data.users.map(u=>`
       <a class="user-card" href="schedule.html?user=${encodeURIComponent(u.username)}">
-        <div class="avatar">${(u.displayName||u.username).slice(0,1)}</div>
+        <div class="avatar">${escapeHtml([...(u.displayName||u.username||"?")][0])}</div>
         <div><strong>${escapeHtml(u.displayName||u.username)}</strong><span>@${escapeHtml(u.username)}</span></div>
         <b>←</b>
       </a>`).join("");
