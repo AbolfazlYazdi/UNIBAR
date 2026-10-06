@@ -6,7 +6,7 @@
   "terms": [
     {
       "id": "t1",
-      "name": "نیمسال اول ۱۴۰۵–۱۴۰۶",
+      "name": "نیمسال اول ۱۴۰۴–۱۴۰۵",
       "weekAnchor": {
         "date": "2026-10-03",
         "parity": "odd"
@@ -62,7 +62,7 @@
               "start": "13:00",
               "end": "15:00",
               "room": "215",
-              "weeks": "all"
+              "weeks": "even"
             },
             {
               "id": "smux4f8riou8f",
@@ -92,7 +92,7 @@
             },
             {
               "id": "k4_s2",
-              "day": "sun",
+              "day": "mon",
               "start": "13:00",
               "end": "15:00",
               "room": "215",
