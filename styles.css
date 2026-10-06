@@ -46,6 +46,23 @@ h1{font-size:28px;letter-spacing:-.5px;margin:0}
 .pill.location{color:var(--text)}
 .pill.warn{background:#fff0f0;color:var(--danger);font-weight:700}
 .card-actions{display:flex;gap:7px;margin-top:11px}
+.pill.week-odd{background:#e8eefc;color:#2848b0;font-weight:700}
+.pill.week-even{background:#e2f5ed;color:#0b7556;font-weight:700}
+
+/* تاریخ، روز و نوع هفته (بالای صفحه) */
+.dateline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:6px;font-size:13px;color:var(--muted)}
+.week-badge{border-radius:999px;padding:3px 10px;font-size:11px;font-weight:800;background:var(--surface-2);color:var(--text)}
+.week-badge.odd{background:#e8eefc;color:#2848b0}
+.week-badge.even{background:#e2f5ed;color:#0b7556}
+.hero-sub{font-size:13px;opacity:.85;margin-top:6px}
+.hero-location{margin-top:6px}
+.hero.live{outline:2px solid rgba(61,220,151,.45)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ddc97;margin-left:7px;animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.seg{display:inline-flex;gap:4px;background:var(--surface-2);border-radius:14px;padding:4px;margin:6px 3px 14px}
+.seg button{border:0;background:transparent;border-radius:11px;padding:8px 14px;font-size:12px;color:var(--muted)}
+.seg button.on{background:var(--surface);color:var(--text);font-weight:800;box-shadow:0 2px 8px rgba(20,24,35,.08)}
+.term-sub{font-size:12px;color:var(--muted);margin-top:8px}
 
 /* جدول هفتگی دسکتاپ */
 .week-wrap{background:var(--surface);border:1px solid var(--line);border-radius:24px;overflow:auto;box-shadow:var(--shadow)}
@@ -78,9 +95,20 @@ h1{font-size:28px;letter-spacing:-.5px;margin:0}
 .field.full{grid-column:1/-1}
 
 /* ادیتور: کارت کلاس و هشدار تداخل */
-.class-edit{background:#fafafa;margin:8px 0;padding:12px}
-.class-edit.clash{border-color:var(--danger)}
-.clash-note{font-size:11px;color:var(--danger);margin:0 0 10px}
+.course-edit{background:#fafafa;margin:10px 0;padding:14px}
+.session-head{display:flex;justify-content:space-between;align-items:center;margin:4px 0 6px;font-size:13px}
+.session-row{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1.2fr auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-top:8px}
+.session-row.clash{border-color:var(--danger)}
+.session-row .field{margin-bottom:0}
+.session-row .danger-btn{padding:11px 13px}
+.anchor-box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:16px}
+.anchor-box .field{margin-bottom:0}
+.hint{grid-column:1/-1;font-size:11px;color:var(--muted);line-height:1.9}
+@media(max-width:640px){
+  .session-row{grid-template-columns:1fr 1fr}
+  .session-row .danger-btn{grid-column:1/-1}
+  .anchor-box{grid-template-columns:1fr}
+}
 .warn-box{background:#fff7e6;border:1px solid #f0d9a8;color:#7a5200;border-radius:14px;padding:11px 13px;margin-top:12px;font-size:12px;line-height:1.9}
 .warn-box strong{display:block}
 

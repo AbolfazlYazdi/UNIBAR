@@ -8,7 +8,11 @@
 <body>
 <div class="app-shell">
 <header class="topbar">
-  <div><div class="eyebrow" id="userLabel">برنامه دانشگاه</div><h1 id="pageTitle">امروز</h1></div>
+  <div>
+    <div class="eyebrow" id="userLabel">برنامه دانشگاه</div>
+    <h1 id="pageTitle">امروز</h1>
+    <div class="dateline" id="dateLine"></div>
+  </div>
   <a class="text-link" href="index.html">کاربران</a>
 </header>
 <main id="app" class="main"></main>
@@ -18,115 +22,181 @@
 <button class="nav-item" data-view="terms"><span class="nav-icon">▤</span><span>ترم‌ها</span></button>
 </nav>
 </div>
+<script src="common.js"></script>
 <script>
-const DAYS=[{id:"sat",name:"شنبه"},{id:"sun",name:"یکشنبه"},{id:"mon",name:"دوشنبه"},{id:"tue",name:"سه‌شنبه"},{id:"wed",name:"چهارشنبه"},{id:"thu",name:"پنجشنبه"},{id:"fri",name:"جمعه"}];
 const HOUR_PX=72;
-let state=null,currentView="today",clash=new Set();
+let state=null,currentView="today",weekView=null,clash=new Set(),lastKey="";
 const username=new URLSearchParams(location.search).get("user");
-const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-const safeColor=c=>/^#[0-9a-f]{3,8}$/i.test(c||"")?c:"#111318";
-const norm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||"");return m?m[1].padStart(2,"0")+":"+m[2]:"00:00"};
-const mins=t=>{const [h,m]=norm(t).split(":").map(Number);return h*60+m};
-const dayIdx=()=>((new Date().getDay()+1)%7);
-const todayId=()=>DAYS[dayIdx()].id;
-const active=()=>(state.terms||[]).find(t=>t.id===state.activeTermId)||(state.terms||[])[0];
-const classesDay=d=>[...(active()?.classes||[])].filter(c=>c.day===d).sort((a,b)=>mins(a.start)-mins(b.start));
-const dateFa=()=>new Intl.DateTimeFormat("fa-IR-u-ca-persian",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
-const place=c=>[c.faculty,c.room].filter(Boolean).join(" · ");
-const placeLong=c=>[c.faculty,c.room?"کلاس "+c.room:""].filter(Boolean).join(" · ");
-function findClash(){
-  const cs=active()?.classes||[],s=new Set();
-  cs.forEach((a,i)=>cs.slice(i+1).forEach(b=>{
-    if(a.day===b.day&&mins(a.start)<mins(b.end)&&mins(b.start)<mins(a.end)){s.add(a.id);s.add(b.id);}
-  }));
-  return s;
+const active=()=>state&&(state.terms.find(t=>t.id===state.activeTermId)||state.terms[0]);
+const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+const nowMinutes=d=>d.getHours()*60+d.getMinutes();
+const place=(c,s)=>[c.faculty,s.room].filter(Boolean).join(" · ");
+const placeLong=(c,s)=>[c.faculty,s.room?"کلاس "+s.room:""].filter(Boolean).join(" · ");
+const fmtDur=m=>m<60?`${m} دقیقه`:`${Math.floor(m/60)} ساعت${m%60?` و ${m%60} دقیقه`:""}`;
+const clashSet=t=>{const s=new Set();findClashes(t).forEach(([a,b])=>{s.add(a.s.id);s.add(b.s.id);});return s;};
+
+/* کلاس‌های یک روز هفته، با فیلتر نوع هفته (p = odd | even | null) */
+function listDay(dayId,p){
+  const t=active(),out=[];
+  if(!t)return out;
+  t.courses.forEach(c=>c.sessions.forEach(s=>{if(s.day===dayId&&sessionOn(s,p))out.push({c,s});}));
+  return out.sort((a,b)=>mins(a.s.start)-mins(b.s.start));
 }
-const card=c=>`<article class="class-card" style="--card-color:${safeColor(c.color)}"><div class="class-top"><div class="class-name">${esc(c.name)}</div><div class="class-time">${norm(c.start)} — ${norm(c.end)}</div></div><div class="class-meta">${place(c)?`<span class="pill location">📍 ${esc(place(c))}</span>`:""}${c.teacher?`<span class="pill">استاد: ${esc(c.teacher)}</span>`:""}${c.units?`<span class="pill">${esc(c.units)} واحد</span>`:""}${clash.has(c.id)?`<span class="pill warn">⚠ تداخل زمانی</span>`:""}</div></article>`;
-function nextClass(){
-  const cs=classesDay(todayId()), now=new Date().getHours()*60+new Date().getMinutes(), c=cs.find(x=>mins(x.end)>now);
-  if(c)return {c,today:true};
-  for(let i=1;i<=7;i++){const d=DAYS[(dayIdx()+i)%7],c2=classesDay(d.id)[0];if(c2)return {c:c2,today:false,day:d}}
+/* کلاس‌های یک تاریخ مشخص (نوع هفته‌ی همان تاریخ حساب می‌شود) */
+function occurrencesOn(date){
+  const t=active();
+  if(!t)return [];
+  return listDay(DAYS[dayIndex(date)].id,weekParity(t,date)).map(o=>({...o,date,offset:0}));
+}
+function nextAfterToday(now){
+  for(let n=1;n<=21;n++){
+    const d=addDays(now,n),occ=occurrencesOn(d);
+    if(occ.length)return {...occ[0],date:d,offset:n};
+  }
+  return null;
+}
+const dayWhen=o=>o.offset===1?"فردا · "+dayName(o.s.day):o.offset>1?`${dayName(o.s.day)} · ${o.offset} روز دیگر`:"";
+const card=(o,opt={})=>{
+  const {c,s}=o,loc=place(c,s),when=opt.day?dayWhen(o):"";
+  return `<article class="class-card" style="--card-color:${safeColor(c.color)}"><div class="class-top"><div class="class-name">${esc(c.name)}</div><div class="class-time">${norm(s.start)} — ${norm(s.end)}</div></div><div class="class-meta">${when?`<span class="pill">📅 ${esc(when)}</span>`:""}${loc?`<span class="pill location">📍 ${esc(loc)}</span>`:""}${c.teacher?`<span class="pill">استاد: ${esc(c.teacher)}</span>`:""}${c.units?`<span class="pill">${esc(c.units)} واحد</span>`:""}${s.weeks!=="all"?`<span class="pill week-${s.weeks}">${WEEK_LABELS[s.weeks]}</span>`:""}${clash.has(s.id)?`<span class="pill warn">⚠ تداخل زمانی</span>`:""}</div></article>`;
+};
+
+/* ---------- امروز ---------- */
+function heroHTML(o,nm,todayHad){
+  const {c,s}=o,isNow=o.offset===0&&mins(s.start)<=nm;
+  const label=isNow?"در حال برگزاری":o.offset===0?"کلاس بعدی امروز":(todayHad?"کلاس‌های امروز تمام شد · کلاس بعدی":"امروز کلاس نداری · کلاس بعدی");
+  const sub=isNow?`${fmtDur(mins(s.end)-nm)} تا پایان کلاس`:o.offset===0?`${fmtDur(mins(s.start)-nm)} تا شروع`:(o.offset===1?"فردا":`${o.offset} روز دیگر`);
+  const meta=[];
+  if(o.offset>0)meta.push(dayName(s.day),faDate(o.date,{day:"numeric",month:"long"}));
+  if(c.teacher)meta.push(c.teacher);
+  return `<section class="hero${isNow?" live":""}"><div class="label">${isNow?'<span class="live-dot"></span>':""}${label}</div><h2>${esc(c.name)}</h2>${meta.length?`<div class="meta">${meta.map(esc).join(" · ")}</div>`:""}<div class="hero-time">${norm(s.start)} — ${norm(s.end)}</div><div class="hero-sub">${sub}</div>${placeLong(c,s)?`<div class="hero-location">📍 ${esc(placeLong(c,s))}</div>`:""}${s.weeks!=="all"?`<div class="hero-sub">${WEEK_LABELS[s.weeks]}</div>`:""}${clash.has(s.id)?`<div class="hero-sub">⚠ تداخل زمانی دارد</div>`:""}</section>`;
 }
 function renderToday(){
-  const n=nextClass(); let html="";
-  html+=`<section class="hero">${n?`<div class="label">${n.today?"کلاس بعدی امروز":"کلاس بعدی این هفته"}</div><h2>${esc(n.c.name)}</h2><div class="meta">${n.today?dateFa():n.day.name}${n.c.teacher?" · "+esc(n.c.teacher):""}</div><div class="hero-time">${norm(n.c.start)} — ${norm(n.c.end)}</div>${placeLong(n.c)?`<div class="hero-location">📍 ${esc(placeLong(n.c))}</div>`:""}`:`<div class="label">این هفته</div><h2>کلاسی ثبت نشده</h2>`}</section>`;
-  const cs=classesDay(todayId()); html+=`<div class="section-head"><h2>${DAYS[dayIdx()].name}</h2><span>${cs.length} کلاس</span></div>`;
-  html+=cs.length?cs.map(card).join(""):`<div class="empty"><strong>امروز کلاس نداری 🎉</strong></div>`;
+  const t=active();
+  if(!t||!t.courses.length)return `<section class="hero"><div class="label">برنامه</div><h2>کلاسی ثبت نشده</h2></section>`;
+  const now=new Date(),nm=nowMinutes(now);
+  const all=occurrencesOn(now),rem=all.filter(o=>mins(o.s.end)>nm),fut=nextAfterToday(now);
+  let hero=null,second=null,rest=[];
+  if(rem.length){hero=rem[0];second=rem[1]||fut;rest=rem.slice(2);}
+  else hero=fut;
+  if(!hero)return `<section class="hero"><div class="label">برنامه</div><h2>کلاسی در پیش نیست</h2></section>`;
+  let html=heroHTML(hero,nm,all.length>0);
+  if(second)html+=`<div class="section-head"><h2>کلاس بعدی</h2></div>`+card(second,{day:true});
+  if(rest.length)html+=`<div class="section-head"><h2>بقیه امروز</h2><span>${rest.length} کلاس</span></div>`+rest.map(o=>card(o)).join("");
   return html;
 }
-/* چیدمان کلاس‌های هم‌پوشان کنار هم در جدول هفتگی */
-function layout(cs){
+
+/* ---------- هفته ---------- */
+/* کلاس‌های هم‌پوشان کنار هم قرار می‌گیرند */
+function layout(items){
   const out=[];let cluster=[],end=0;
   const flush=()=>{
     const lanes=[],start=out.length;
-    cluster.forEach(c=>{
-      let l=lanes.findIndex(e=>e<=mins(c.start));
+    cluster.forEach(o=>{
+      let l=lanes.findIndex(e=>e<=mins(o.s.start));
       if(l<0){l=lanes.length;lanes.push(0);}
-      lanes[l]=mins(c.end);
-      out.push({c,lane:l});
+      lanes[l]=mins(o.s.end);
+      out.push({o,lane:l});
     });
     for(let i=start;i<out.length;i++)out[i].n=lanes.length;
     cluster=[];
   };
-  cs.forEach(c=>{
-    if(cluster.length&&mins(c.start)>=end)flush();
-    end=cluster.length?Math.max(end,mins(c.end)):mins(c.end);
-    cluster.push(c);
+  items.forEach(o=>{
+    if(cluster.length&&mins(o.s.start)>=end)flush();
+    end=cluster.length?Math.max(end,mins(o.s.end)):mins(o.s.end);
+    cluster.push(o);
   });
   if(cluster.length)flush();
   return out;
 }
-function renderWeekDesktop(){
-  const all=active()?.classes||[];
+function renderWeekDesktop(p,showToday){
   let h0=8,h1=18;
-  all.forEach(c=>{h0=Math.min(h0,Math.floor(mins(c.start)/60));h1=Math.max(h1,Math.ceil(mins(c.end)/60));});
+  active().courses.forEach(c=>c.sessions.forEach(s=>{h0=Math.min(h0,Math.floor(mins(s.start)/60));h1=Math.max(h1,Math.ceil(mins(s.end)/60));}));
   h1=Math.min(Math.max(h1,h0+1),24);
-  const hours=h1-h0,height=hours*HOUR_PX,tid=todayId();
-  const heads=`<div class="week-head"></div>`+DAYS.map(d=>`<div class="week-head ${d.id===tid?"today":""}">${d.name}</div>`).join("");
+  const hours=h1-h0,height=hours*HOUR_PX,tid=DAYS[dayIndex(new Date())].id;
+  const heads=`<div class="week-head"></div>`+DAYS.map(d=>`<div class="week-head ${showToday&&d.id===tid?"today":""}">${d.name}</div>`).join("");
   const timeCol=`<div class="time-col">${Array.from({length:hours},(_,i)=>`<div class="time-cell">${String(h0+i).padStart(2,"0")}:00</div>`).join("")}</div>`;
   const cols=DAYS.map(d=>{
-    const ev=layout(classesDay(d.id)).map(({c,lane,n})=>{
-      const top=(mins(c.start)-h0*60)*HOUR_PX/60;
-      const h=Math.max(mins(c.end)-mins(c.start),30)*HOUR_PX/60-2;
-      return `<div class="week-event" style="top:${top}px;height:${h}px;right:calc(${lane*100/n}% + 3px);left:auto;width:calc(${100/n}% - 6px);background:${safeColor(c.color)}" title="${esc(c.name)}"><strong>${clash.has(c.id)?"⚠ ":""}${esc(c.name)}</strong><span class="ev-time">${norm(c.start)}–${norm(c.end)}</span>${c.room?`<span>${esc(c.room)}</span>`:""}</div>`;
+    const ev=layout(listDay(d.id,p)).map(({o,lane,n})=>{
+      const {c,s}=o;
+      const top=(mins(s.start)-h0*60)*HOUR_PX/60;
+      const h=Math.max(mins(s.end)-mins(s.start),30)*HOUR_PX/60-2;
+      return `<div class="week-event" style="top:${top}px;height:${h}px;right:calc(${lane*100/n}% + 3px);left:auto;width:calc(${100/n}% - 6px);background:${safeColor(c.color)}" title="${esc(c.name)}"><strong>${clash.has(s.id)?"⚠ ":""}${esc(c.name)}</strong><span class="ev-time">${norm(s.start)}–${norm(s.end)}</span>${s.room?`<span>${esc(s.room)}</span>`:""}</div>`;
     }).join("");
     return `<div class="day-col" style="height:${height}px;min-height:${height}px">${ev}</div>`;
   }).join("");
   return `<div class="week-desktop week-wrap"><div class="week-grid">${heads}${timeCol}${cols}</div></div>`;
 }
-function renderWeekMobile(){
-  return `<div class="week-mobile">${DAYS.map(d=>{const cs=classesDay(d.id);return `<section class="week-mobile-day"><div class="day-title"><strong>${d.name}</strong>${d.id===todayId()?`<span>امروز</span>`:""}</div>${cs.length?cs.map(card).join(""):`<div class="empty"><span>کلاسی نیست</span></div>`}</section>`}).join("")}</div>`;
+function renderWeekMobile(p,showToday){
+  const tid=DAYS[dayIndex(new Date())].id;
+  return `<div class="week-mobile">${DAYS.map(d=>{
+    const cs=listDay(d.id,p);
+    return `<section class="week-mobile-day"><div class="day-title"><strong>${d.name}</strong>${showToday&&d.id===tid?`<span>امروز</span>`:""}</div>${cs.length?cs.map(o=>card(o)).join(""):`<div class="empty"><span>کلاسی نیست</span></div>`}</section>`;
+  }).join("")}</div>`;
 }
-const renderWeek=()=>renderWeekDesktop()+renderWeekMobile();
+function renderWeek(){
+  const t=active();
+  if(!t)return `<div class="empty">ترمی ثبت نشده.</div>`;
+  const cur=weekParity(t,new Date()),p=cur?(weekView||cur):null,showToday=!p||p===cur;
+  const seg=cur?`<div class="seg">${["odd","even"].map(k=>`<button data-wk="${k}" class="${k===p?"on":""}">${WEEK_LABELS[k]}${k===cur?" · این هفته":""}</button>`).join("")}</div>`:"";
+  return seg+renderWeekDesktop(p,showToday)+renderWeekMobile(p,showToday);
+}
+
+/* ---------- ترم‌ها ---------- */
+function anchorText(t){
+  const a=t.weekAnchor;
+  if(!a)return "هفته‌ی فرد/زوج برای این ترم تنظیم نشده";
+  return `هفته‌ی مبنا: ${faDate(new Date(parseISO(a.date)),{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"})} — ${WEEK_LABELS[a.parity]}`;
+}
 function renderTerms(){
   const ts=state.terms||[];
   if(!ts.length)return `<div class="empty">ترمی ثبت نشده.</div>`;
   const a=active();
-  return ts.map(t=>`<div class="term-card ${t===a?"active":""}"><div class="term-head"><div class="term-title">${esc(t.name)}</div><span class="badge">${(t.classes||[]).length} جلسه</span></div></div>`).join("");
+  return ts.map(t=>{
+    const units=t.courses.reduce((n,c)=>n+(Number(c.units)||0),0);
+    return `<div class="term-card ${t===a?"active":""}"><div class="term-head"><div class="term-title">${esc(t.name)}</div><span class="badge">${t.courses.length} درس · ${units} واحد</span></div><div class="term-sub">${esc(anchorText(t))}</div></div>`;
+  }).join("");
+}
+
+/* ---------- هدر و رندر ---------- */
+function updateHeader(){
+  const now=new Date(),t=active(),p=t?weekParity(t,now):null;
+  document.getElementById("dateLine").innerHTML=`<span>${DAYS[dayIndex(now)].name}</span><span>${faDate(now,{day:"numeric",month:"long",year:"numeric"})}</span>${p?`<span class="week-badge ${p}">${WEEK_LABELS[p]}</span>`:""}`;
 }
 function render(){
+  const now=new Date();
+  lastKey=isoDate(now);
+  updateHeader();
   if(!state)return;
-  clash=findClash();
+  const t=active();
+  clash=t?clashSet(t):new Set();
   document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===currentView));
-  document.getElementById("pageTitle").textContent={today:"امروز",week:"هفته",terms:"ترم‌ها"}[currentView];
+  document.getElementById("pageTitle").textContent={today:"امروز "+DAYS[dayIndex(now)].name,week:"هفته",terms:"ترم‌ها"}[currentView];
   document.getElementById("app").innerHTML=currentView==="today"?renderToday():currentView==="week"?renderWeek():renderTerms();
 }
 const fetchJson=url=>fetch(url+"?"+Date.now()).then(r=>{if(!r.ok)throw new Error("http");return r.json()});
 const showError=(t,s)=>{document.getElementById("app").innerHTML=`<div class="empty"><strong>${t}</strong><span>${s}</span></div>`};
 async function init(){
+  updateHeader();
   if(location.protocol==="file:"){showError("سایت باید از طریق سرور باز شود","با دابل‌کلیک روی فایل کار نمی‌کند. از GitHub Pages یا یک سرور محلی (python -m http.server) استفاده کن.");return;}
   try{
     const idx=await fetchJson("users/index.json");
     const u=(idx.users||[]).find(x=>x.username===username);
     if(!u){showError("کاربر پیدا نشد","نام کاربری را بررسی کن.");return;}
-    state=await fetchJson(u.file);
-    if(!Array.isArray(state.terms))state.terms=[];
+    state=migrate(await fetchJson(u.file));
     document.getElementById("userLabel").textContent=state.displayName?`${state.displayName} · @${state.username}`:`@${state.username}`;
     document.title=state.displayName||state.username||"برنامه";
     render();
   }catch(e){showError("خواندن فایل برنامه ناموفق بود","مطمئن شو فایل کاربر داخل پوشه users وجود دارد و JSON معتبر است.");}
 }
 document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{currentView=b.dataset.view;render()});
+document.getElementById("app").addEventListener("click",e=>{
+  const b=e.target.closest("[data-wk]");
+  if(b){weekView=b.dataset.wk;render();}
+});
+/* به‌روزرسانی خودکار: تغییر کلاس جاری/بعدی، عوض شدن روز و هفته */
+setInterval(()=>{if(!state)return;if(isoDate(new Date())!==lastKey||currentView==="today")render();},30000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)render();});
 init();
 </script>
 </body></html>

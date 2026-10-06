@@ -20,7 +20,8 @@
   </div>
 </section>
 <section class="setting-card">
-  <div class="section-head" style="margin-top:0"><h2>۲. ترم و کلاس‌ها</h2><button class="primary" onclick="addTerm()">+ ترم</button></div>
+  <div class="section-head" style="margin-top:0"><h2>۲. ترم، درس‌ها و جلسه‌ها</h2><button class="primary" onclick="addTerm()">+ ترم</button></div>
+  <p class="hint" style="margin:0 0 6px">هر درس را فقط یک بار وارد کن و همه‌ی جلسه‌های هفتگی‌اش (روز، ساعت، کلاس، فرد/زوج) را داخل همان درس اضافه کن.</p>
   <div id="terms"></div>
 </section>
 <section class="setting-card">
@@ -31,99 +32,119 @@
 </section>
 </main>
 </div>
+<script src="common.js"></script>
 <script>
-const DAYS=[["sat","شنبه"],["sun","یکشنبه"],["mon","دوشنبه"],["tue","سه‌شنبه"],["wed","چهارشنبه"],["thu","پنجشنبه"],["fri","جمعه"]];
-const COLORS=["#111318","#315cdb","#a04cbe","#0b8b68","#c56b19","#a73d4b","#4b6478","#6b5aa6"];
-let data={version:1,username:"a",displayName:"Abolfazl",activeTermId:"t1",terms:[{id:"t1",name:"نیمسال اول ۱۴۰۴–۱۴۰۵",classes:[]}]};
-const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-const safeColor=c=>/^#[0-9a-f]{3,8}$/i.test(c||"")?c:"#111318";
-const norm=t=>{const m=/^(\d{1,2}):(\d{2})$/.exec(t||"");return m?m[1].padStart(2,"0")+":"+m[2]:""};
-const mins=t=>{const n=norm(t);if(!n)return 0;const [h,m]=n.split(":").map(Number);return h*60+m};
-const dayName=id=>(DAYS.find(d=>d[0]===id)||[,id])[1];
-const newClass=(color)=>({id:"c_"+Date.now()+"_"+Math.random().toString(36).slice(2,7),name:"",day:"sat",start:"08:00",end:"09:30",faculty:"",room:"",teacher:"",units:0,color:color||COLORS[0]});
+const newTerm=(id,name)=>({id,name,weekAnchor:{date:isoDate(new Date()),parity:""},courses:[]});
+const newSession=()=>({id:newId("s"),day:"sat",start:"08:00",end:"10:00",room:"",weeks:"all"});
+const newCourse=n=>({id:newId("k"),name:"",teacher:"",faculty:"",units:0,color:COLORS[n%COLORS.length],sessions:[newSession()]});
+let data={version:2,username:"a",displayName:"Abolfazl",activeTermId:"t1",terms:[newTerm("t1","نیمسال اول ۱۴۰۴–۱۴۰۵")]};
 
 function syncUserFields(){
  document.getElementById("username").value=data.username||"";
  document.getElementById("displayName").value=data.displayName||"";
 }
 function addTerm(){
- data.terms.push({id:"t_"+Date.now(),name:"ترم جدید",classes:[]});
+ data.terms.push(newTerm("t_"+Date.now(),"ترم جدید"));
  data.activeTermId=data.terms.at(-1).id;
  render();
 }
 function setActive(ti){data.activeTermId=data.terms[ti].id;render();}
-function addClass(ti){
- const t=data.terms[ti];
- t.classes.push(newClass(COLORS[t.classes.length%COLORS.length]));
- render();
+function setAnchor(ti,key,val){data.terms[ti].weekAnchor[key]=val;render();}
+function addCourse(ti){const t=data.terms[ti];t.courses.push(newCourse(t.courses.length));render();}
+function removeCourse(ti,ci){
+ if(!confirm("این درس و همه‌ی جلسه‌هایش حذف شود؟"))return;
+ data.terms[ti].courses.splice(ci,1);render();
 }
-function removeClass(ti,ci){data.terms[ti].classes.splice(ci,1);render();}
-function clashes(cs){
- const pairs=[];
- cs.forEach((a,i)=>cs.slice(i+1).forEach(b=>{
-  if(a.day===b.day&&mins(a.start)<mins(b.end)&&mins(b.start)<mins(a.end))pairs.push([a,b]);
- }));
- return pairs;
+function addSession(ti,ci){data.terms[ti].courses[ci].sessions.push(newSession());render();}
+function removeSession(ti,ci,si){
+ const c=data.terms[ti].courses[ci];
+ if(c.sessions.length<=1){alert("هر درس باید حداقل یک جلسه داشته باشد.");return;}
+ c.sessions.splice(si,1);render();
+}
+
+function sessionHTML(ti,ci,si,s,isBad){
+ const P=`data.terms[${ti}].courses[${ci}].sessions[${si}]`;
+ return `<div class="session-row ${isBad?"clash":""}">
+  <div class="field"><label>روز</label><select class="select" onchange="${P}.day=this.value;render()">${DAYS.map(d=>`<option value="${d.id}" ${s.day===d.id?"selected":""}>${d.name}</option>`).join("")}</select></div>
+  <div class="field"><label>شروع</label><input class="input" type="time" value="${esc(norm(s.start))}" onchange="${P}.start=this.value;render()"></div>
+  <div class="field"><label>پایان</label><input class="input" type="time" value="${esc(norm(s.end))}" onchange="${P}.end=this.value;render()"></div>
+  <div class="field"><label>شماره کلاس</label><input class="input" value="${esc(s.room)}" oninput="${P}.room=this.value"></div>
+  <div class="field"><label>هفته‌ها</label><select class="select" onchange="${P}.weeks=this.value;render()">${Object.keys(WEEK_LABELS).map(k=>`<option value="${k}" ${s.weeks===k?"selected":""}>${WEEK_LABELS[k]}</option>`).join("")}</select></div>
+  <button class="danger-btn" title="حذف جلسه" onclick="removeSession(${ti},${ci},${si})">✕</button>
+ </div>`;
+}
+function courseHTML(ti,ci,c,bad){
+ const P=`data.terms[${ti}].courses[${ci}]`;
+ const colors=COLORS.includes(c.color)?COLORS:[...COLORS,c.color];
+ return `<div class="setting-card course-edit">
+ <div class="form-grid">
+  <div class="field full"><label>نام درس</label><input class="input" value="${esc(c.name)}" oninput="${P}.name=this.value"></div>
+  <div class="field"><label>استاد</label><input class="input" value="${esc(c.teacher)}" oninput="${P}.teacher=this.value"></div>
+  <div class="field"><label>دانشکده</label><input class="input" value="${esc(c.faculty)}" oninput="${P}.faculty=this.value"></div>
+  <div class="field"><label>واحد</label><input class="input" type="number" min="0" value="${Number(c.units)||0}" oninput="${P}.units=Number(this.value)||0"></div>
+  <div class="field"><label>رنگ</label><select class="select" style="border-right:8px solid ${safeColor(c.color)}" onchange="${P}.color=this.value;render()">${colors.map((x,i)=>`<option value="${esc(x)}" ${c.color===x?"selected":""}>${i<COLORS.length?"رنگ "+(i+1):"رنگ فایل ("+esc(x)+")"}</option>`).join("")}</select></div>
+ </div>
+ <div class="session-head"><strong>جلسه‌های هفتگی</strong><button class="secondary" onclick="addSession(${ti},${ci})">+ جلسه</button></div>
+ ${c.sessions.map((s,si)=>sessionHTML(ti,ci,si,s,bad.has(s.id))).join("")}
+ <div style="margin-top:12px"><button class="danger-btn" onclick="removeCourse(${ti},${ci})">حذف درس</button></div>
+ </div>`;
+}
+function termHTML(t,ti){
+ const pairs=findClashes(t),bad=new Set(pairs.flatMap(([a,b])=>[a.s.id,b.s.id]));
+ if(!t.weekAnchor)t.weekAnchor={date:isoDate(new Date()),parity:""};
+ const a=t.weekAnchor,p=weekParity({weekAnchor:a},new Date());
+ const warn=pairs.length?`<div class="warn-box"><strong>⚠ تداخل زمانی</strong>${pairs.map(([x,y])=>`<div>${esc(x.c.name||"بدون نام")} و ${esc(y.c.name||"بدون نام")} — ${dayName(x.s.day)} ${norm(x.s.start)}–${norm(x.s.end)} / ${norm(y.s.start)}–${norm(y.s.end)}</div>`).join("")}</div>`:"";
+ return `
+ <div class="term-card ${t.id===data.activeTermId?"active":""}">
+  <div class="term-head"><input class="input" style="max-width:320px" value="${esc(t.name)}" oninput="data.terms[${ti}].name=this.value"><span class="badge">${t.courses.length} درس</span></div>
+  <div class="anchor-box">
+   <div class="field"><label>تاریخ مبنا (یک روز از هفته‌ای که نوعش را می‌دانی؛ پیش‌فرض امروز)</label><input class="input" type="date" value="${esc(a.date)}" onchange="setAnchor(${ti},'date',this.value)"></div>
+   <div class="field"><label>آن هفته فرد است یا زوج؟</label><select class="select" onchange="setAnchor(${ti},'parity',this.value)"><option value="" ${!a.parity?"selected":""}>مشخص نیست</option><option value="odd" ${a.parity==="odd"?"selected":""}>هفته فرد</option><option value="even" ${a.parity==="even"?"selected":""}>هفته زوج</option></select></div>
+   <div class="hint">${p?`با این تنظیم، هفته‌ی جاری «${WEEK_LABELS[p]}» است و سایت خودش هفته‌های بعد را از روی تاریخ حساب می‌کند.`:"برای فعال شدن فرد/زوج، تاریخ و نوع هفته را مشخص کن."}</div>
+  </div>
+  <div class="card-actions"><button class="secondary" onclick="setActive(${ti})">${t.id===data.activeTermId?"✓ فعال":"فعال"}</button><button class="primary" onclick="addCourse(${ti})">+ درس</button></div>
+  ${warn}
+  <div style="margin-top:12px">${t.courses.map((c,ci)=>courseHTML(ti,ci,c,bad)).join("")||'<div class="empty"><span>هنوز درسی اضافه نشده.</span></div>'}</div>
+ </div>`;
 }
 function render(){
- document.getElementById("terms").innerHTML=data.terms.map((t,ti)=>{
-  const pairs=clashes(t.classes),bad=new Set(pairs.flat().map(c=>c.id));
-  const warn=pairs.length?`<div class="warn-box"><strong>⚠ تداخل زمانی</strong>${pairs.map(([a,b])=>`<div>${esc(a.name||"بدون نام")} و ${esc(b.name||"بدون نام")} — ${dayName(a.day)} ${norm(a.start)}–${norm(a.end)} / ${norm(b.start)}–${norm(b.end)}</div>`).join("")}</div>`:"";
-  return `
- <div class="term-card ${t.id===data.activeTermId?"active":""}">
-   <div class="term-head"><input class="input" style="max-width:320px" value="${esc(t.name)}" oninput="data.terms[${ti}].name=this.value"><span class="badge">${t.classes.length} کلاس</span></div>
-   <div class="card-actions"><button class="secondary" onclick="setActive(${ti})">${t.id===data.activeTermId?"✓ فعال":"فعال"}</button><button class="primary" onclick="addClass(${ti})">+ کلاس</button></div>
-   ${warn}
-   <div style="margin-top:12px">${t.classes.map((c,ci)=>classEditor(ti,ci,c,bad.has(c.id))).join("")||'<div class="empty"><span>هنوز کلاسی اضافه نشده.</span></div>'}</div>
- </div>`;
- }).join("");
+ document.getElementById("terms").innerHTML=data.terms.map(termHTML).join("");
 }
-function classEditor(ti,ci,c,isBad){
- const p=`data.terms[${ti}].classes[${ci}]`;
- const colors=COLORS.includes(c.color)?COLORS:[...COLORS,c.color];
- return `<div class="setting-card class-edit ${isBad?"clash":""}">
- <div class="form-grid">
- <div class="field full"><label>نام درس</label><input class="input" value="${esc(c.name)}" oninput="${p}.name=this.value"></div>
- <div class="field"><label>روز</label><select class="select" onchange="${p}.day=this.value;render()">${DAYS.map(d=>`<option value="${d[0]}" ${c.day===d[0]?"selected":""}>${d[1]}</option>`).join("")}</select></div>
- <div class="field"><label>رنگ</label><select class="select" style="border-right:8px solid ${safeColor(c.color)}" onchange="${p}.color=this.value;render()">${colors.map((x,i)=>`<option value="${esc(x)}" ${c.color===x?"selected":""}>${i<COLORS.length?"رنگ "+(i+1):"رنگ فایل ("+esc(x)+")"}</option>`).join("")}</select></div>
- <div class="field"><label>شروع</label><input class="input" type="time" value="${esc(norm(c.start))}" onchange="${p}.start=this.value;render()"></div>
- <div class="field"><label>پایان</label><input class="input" type="time" value="${esc(norm(c.end))}" onchange="${p}.end=this.value;render()"></div>
- <div class="field"><label>دانشکده</label><input class="input" value="${esc(c.faculty)}" oninput="${p}.faculty=this.value"></div>
- <div class="field"><label>شماره کلاس</label><input class="input" value="${esc(c.room)}" oninput="${p}.room=this.value"></div>
- <div class="field"><label>استاد</label><input class="input" value="${esc(c.teacher)}" oninput="${p}.teacher=this.value"></div>
- <div class="field"><label>واحد</label><input class="input" type="number" min="0" value="${Number(c.units)||0}" oninput="${p}.units=Number(this.value)||0"></div>
- </div>
- ${isBad?'<div class="clash-note">⚠ این کلاس با کلاس دیگری تداخل زمانی دارد.</div>':""}
- <button class="danger-btn" onclick="removeClass(${ti},${ci})">حذف کلاس</button>
- </div>`;
+
+function buildOutput(username){
+ return {
+  version:2,username,
+  displayName:document.getElementById("displayName").value.trim()||username,
+  activeTermId:data.activeTermId,
+  terms:data.terms.map(t=>({
+   id:t.id,name:t.name,weekAnchor:cleanAnchor(t.weekAnchor),
+   courses:t.courses.map(c=>({
+    id:c.id,name:String(c.name).trim(),teacher:String(c.teacher).trim(),faculty:String(c.faculty).trim(),units:Number(c.units)||0,color:c.color,
+    sessions:c.sessions.map(s=>({id:s.id,day:s.day,start:norm(s.start),end:norm(s.end),room:String(s.room||"").trim(),weeks:s.weeks||"all"}))
+   }))
+  }))
+ };
 }
 function downloadUser(){
  const username=document.getElementById("username").value.trim();
  if(!/^[A-Za-z0-9_-]+$/.test(username)){alert("نام کاربری فقط انگلیسی، عدد، _ یا - باشد.");return;}
  const problems=[];
- data.terms.forEach(t=>t.classes.forEach(c=>{
-  if(!String(c.name).trim())problems.push(`«${t.name}»: یک کلاس بدون نام وجود دارد.`);
-  else if(!norm(c.start)||!norm(c.end)||mins(c.end)<=mins(c.start))problems.push(`«${c.name}»: ساعت شروع و پایان معتبر نیست.`);
- }));
+ data.terms.forEach(t=>{
+  let needAnchor=false;
+  t.courses.forEach(c=>{
+   if(!String(c.name).trim())problems.push(`«${t.name}»: یک درس بدون نام وجود دارد.`);
+   c.sessions.forEach(s=>{
+    if(!norm(s.start)||!norm(s.end)||mins(s.end)<=mins(s.start))problems.push(`«${c.name||"بدون نام"}»: ساعت شروع و پایان یک جلسه معتبر نیست.`);
+    if(s.weeks&&s.weeks!=="all")needAnchor=true;
+   });
+  });
+  if(needAnchor&&!cleanAnchor(t.weekAnchor))problems.push(`«${t.name}»: جلسه‌ی فرد/زوج داری ولی تاریخ و نوع هفته‌ی مبنا را تنظیم نکرده‌ای.`);
+ });
  if(problems.length){alert("قبل از ذخیره این موارد را اصلاح کن:\n\n"+problems.join("\n"));return;}
- data.username=username;data.displayName=document.getElementById("displayName").value.trim()||username;
- const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
+ const out=buildOutput(username);
+ const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json;charset=utf-8"});
  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=username+".json";a.click();URL.revokeObjectURL(a.href);
  alert("فایل ساخته شد. آن را داخل پوشه users در GitHub قرار بده.");
-}
-function normalizeData(x){
- const stamp=Date.now();
- x.version=x.version||1;
- x.displayName=x.displayName||x.username;
- if(!x.terms.length)x.terms.push({id:"t1",name:"ترم جدید",classes:[]});
- x.terms=x.terms.map((t,i)=>({
-  ...t,
-  id:t.id||"t_"+stamp+"_"+i,
-  name:t.name||"",
-  classes:(Array.isArray(t.classes)?t.classes:[]).map((c,j)=>({...newClass(),id:"c_"+stamp+"_"+i+"_"+j,...c}))
- }));
- if(!x.terms.some(t=>t.id===x.activeTermId))x.activeTermId=x.terms[0].id;
- return x;
 }
 function loadFile(e){
  const input=e.target,file=input.files?.[0];
@@ -133,7 +154,12 @@ function loadFile(e){
   try{
    const x=JSON.parse(r.result);
    if(typeof x.username!=="string"||!x.username||!Array.isArray(x.terms))throw 0;
-   data=normalizeData(x);syncUserFields();render();
+   const old=x.version!==2||x.terms.some(t=>!Array.isArray(t.courses));
+   const d=migrate(x);
+   if(!d.terms.length){d.terms.push(newTerm("t1","ترم جدید"));d.activeTermId="t1";}
+   d.terms.forEach(t=>{if(!t.weekAnchor)t.weekAnchor={date:isoDate(new Date()),parity:""};});
+   data=d;syncUserFields();render();
+   if(old)alert("این فایل با ساختار قدیمی بود و به ساختار جدید (هر درس یک بار با چند جلسه) تبدیل شد. بعد از بررسی دوباره ذخیره کن.");
   }catch{alert("فایل برنامه معتبر نیست.")}
  };
  r.readAsText(file);
