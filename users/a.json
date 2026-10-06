@@ -6,7 +6,7 @@
   "terms": [
     {
       "id": "t1",
-      "name": "نیمسال اول ۱۴۰۴–۱۴۰۵",
+      "name": "نیمسال اول ۱۴۰۵–۱۴۰۶",
       "weekAnchor": {
         "date": "2026-10-03",
         "parity": "odd"
@@ -67,8 +67,8 @@
             {
               "id": "smux4f8riou8f",
               "day": "tue",
-              "start": "01:00",
-              "end": "03:00",
+              "start": "13:00",
+              "end": "15:00",
               "room": "211",
               "weeks": "all"
             }
@@ -109,7 +109,7 @@
           "color": "#c56b19",
           "sessions": [
             {
-              "id": "k5_s1",
+              "id": "smux6kkuw0nvw",
               "day": "sat",
               "start": "10:00",
               "end": "12:00",
@@ -117,7 +117,7 @@
               "weeks": "even"
             },
             {
-              "id": "k5_s2",
+              "id": "smux6mgmayvr9",
               "day": "mon",
               "start": "08:00",
               "end": "10:00",
@@ -163,8 +163,8 @@
             {
               "id": "smux4mkn4hoc7",
               "day": "mon",
-              "start": "01:00",
-              "end": "03:00",
+              "start": "13:00",
+              "end": "15:00",
               "room": "217",
               "weeks": "odd"
             }
