@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg">
+<title>برنامه</title>
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div><div class="eyebrow" id="userLabel">برنامه دانشگاه</div><h1 id="pageTitle">امروز</h1></div>
+  <a class="text-link" href="index.html">کاربران</a>
+</header>
+<main id="app" class="main"></main>
+<nav class="bottom-nav">
+<button class="nav-item active" data-view="today"><span class="nav-icon">⌂</span><span>امروز</span></button>
+<button class="nav-item" data-view="week"><span class="nav-icon">▦</span><span>هفته</span></button>
+<button class="nav-item" data-view="terms"><span class="nav-icon">▤</span><span>ترم‌ها</span></button>
+</nav>
+</div>
+<script>
+const DAYS=[{id:"sat",name:"شنبه"},{id:"sun",name:"یکشنبه"},{id:"mon",name:"دوشنبه"},{id:"tue",name:"سه‌شنبه"},{id:"wed",name:"چهارشنبه"},{id:"thu",name:"پنجشنبه"},{id:"fri",name:"جمعه"}];
+let state=null,currentView="today";
+const username=new URLSearchParams(location.search).get("user");
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const dayIdx=()=>((new Date().getDay()+1)%7);
+const todayId=()=>DAYS[dayIdx()].id;
+const active=()=>state.terms.find(t=>t.id===state.activeTermId)||state.terms[0];
+const mins=t=>{let [h,m]=t.split(":").map(Number);return h*60+m};
+const classesDay=d=>[...(active()?.classes||[])].filter(c=>c.day===d).sort((a,b)=>a.start.localeCompare(b.start));
+const dateFa=()=>new Intl.DateTimeFormat("fa-IR-u-ca-persian",{weekday:"long",day:"numeric",month:"long"}).format(new Date());
+const card=c=>`<article class="class-card" style="--card-color:${c.color||"#111318"}"><div class="class-top"><div class="class-name">${esc(c.name)}</div><div class="class-time">${esc(c.start)} — ${esc(c.end)}</div></div><div class="class-meta"><span class="pill location">📍 ${esc(c.faculty)} · ${esc(c.room)}</span>${c.teacher?`<span class="pill">استاد: ${esc(c.teacher)}</span>`:""}${c.units?`<span class="pill">${esc(c.units)} واحد</span>`:""}</div></article>`;
+function nextClass(){
+  let cs=classesDay(todayId()), now=new Date().getHours()*60+new Date().getMinutes(), c=cs.find(x=>mins(x.end)>now);
+  if(c)return {c,today:true};
+  for(let i=1;i<=7;i++){let d=DAYS[(dayIdx()+i)%7].id,c2=classesDay(d)[0];if(c2)return {c:c2,today:false,day:DAYS.find(x=>x.id===d)}}
+}
+function renderToday(){
+  const n=nextClass(); let html="";
+  html+=`<section class="hero">${n?`<div class="label">${n.today?"کلاس بعدی امروز":"کلاس بعدی این هفته"}</div><h2>${esc(n.c.name)}</h2><div class="meta">${n.today?dateFa():n.day.name}${n.c.teacher?" · "+esc(n.c.teacher):""}</div><div class="hero-time">${n.c.start} — ${n.c.end}</div><div class="hero-location">📍 ${esc(n.c.faculty)} · کلاس ${esc(n.c.room)}</div>`:`<div class="label">این هفته</div><h2>کلاسی ثبت نشده</h2>`}</section>`;
+  let cs=classesDay(todayId()); html+=`<div class="section-head"><h2>${DAYS[dayIdx()].name}</h2><span>${cs.length} کلاس</span></div>`;
+  html+=cs.length?cs.map(card).join(""):`<div class="empty"><strong>امروز کلاس نداری 🎉</strong></div>`;
+  return html;
+}
+function renderWeek(){return `<div class="week-mobile">${DAYS.map(d=>`<section class="week-mobile-day"><div class="day-title"><strong>${d.name}</strong>${d.id===todayId()?`<span>امروز</span>`:""}</div>${classesDay(d.id).length?classesDay(d.id).map(card).join(""):`<div class="empty"><span>کلاسی نیست</span></div>`}</section>`).join("")}</div>`}
+function renderTerms(){return active().terms?.length?active().terms.map(t=>`<div class="term-card ${t.id===active().id?"active":""}"><div class="term-head"><div class="term-title">${esc(t.name)}</div><span class="badge">${t.classes.length} جلسه</span></div></div>`).join(""):`<div class="empty">ترمی ثبت نشده.</div>`}
+function render(){document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===currentView));document.getElementById("pageTitle").textContent={today:"امروز",week:"هفته",terms:"ترم‌ها"}[currentView];document.getElementById("app").innerHTML=currentView==="today"?renderToday():currentView==="week"?renderWeek():renderTerms();}
+async function init(){
+  try{
+    const idx=await fetch("users/index.json?"+Date.now()).then(r=>r.json());
+    const u=idx.users.find(x=>x.username===username);
+    if(!u) throw new Error();
+    state=await fetch(u.file+"?"+Date.now()).then(r=>r.json());
+    document.getElementById("userLabel").textContent=state.displayName?`${state.displayName} · @${state.username}`:`@${state.username}`;
+    render();
+  }catch(e){document.getElementById("app").innerHTML='<div class="empty"><strong>کاربر پیدا نشد</strong><span>نام کاربری را بررسی کن.</span></div>'}
+}
+document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{currentView=b.dataset.view;render()});
+init();
+</script>
+</body></html>

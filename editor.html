@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg">
+<title>ساخت فایل برنامه</title>
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div><div class="eyebrow">ابزار مدیر</div><h1>ساخت فایل کاربر</h1></div>
+  <a class="text-link" href="index.html">نمایش سایت</a>
+</header>
+<main class="main">
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۱. اطلاعات کاربر</h2></div>
+  <div class="form-grid">
+    <div class="field"><label>نام کاربری انگلیسی</label><input id="username" class="input" value="a" placeholder="مثلاً ali" pattern="[A-Za-z0-9_-]+" required></div>
+    <div class="field"><label>نام نمایشی</label><input id="displayName" class="input" value="Abolfazl" placeholder="مثلاً علی رضایی"></div>
+  </div>
+</section>
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۲. ترم و کلاس‌ها</h2><button class="primary" onclick="addTerm()">+ ترم</button></div>
+  <div id="terms"></div>
+</section>
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۳. خروجی</h2></div>
+  <p style="font-size:12px;color:var(--muted);line-height:1.9">با ذخیره، یک فایل JSON ساخته می‌شود. اسم فایل باید دقیقاً <b>username.json</b> باشد؛ سپس آن را داخل پوشه <b>users</b> مخزن GitHub بگذار.</p>
+  <button class="primary" onclick="downloadUser()">ذخیره و دریافت فایل</button>
+  <label class="file-label" style="margin-right:7px">ویرایش فایل موجود<input type="file" accept=".json,application/json" onchange="loadFile(event)"></label>
+</section>
+</main>
+</div>
+<script>
+const DAYS=[["sat","شنبه"],["sun","یکشنبه"],["mon","دوشنبه"],["tue","سه‌شنبه"],["wed","چهارشنبه"],["thu","پنجشنبه"]];
+const COLORS=["#111318","#315cdb","#a04cbe","#0b8b68","#c56b19","#a73d4b","#4b6478","#6b5aa6"];
+let data={version:1,username:"a",displayName:"Abolfazl",activeTermId:"t1",terms:[{id:"t1",name:"نیمسال اول ۱۴۰۴–۱۴۰۵",classes:[]}]};
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+function addTerm(){data.terms.push({id:"t_"+Date.now(),name:"ترم جدید",classes:[]});data.activeTermId=data.terms.at(-1).id;render();}
+function addClass(tid){
+ const t=data.terms.find(x=>x.id===tid);
+ t.classes.push({id:"c_"+Date.now()+Math.random(),name:"",day:"sat",start:"08:00",end:"09:30",faculty:"",room:"",teacher:"",units:0,color:COLORS[t.classes.length%COLORS.length]});
+ render();
+}
+function render(){
+ document.getElementById("username").value=data.username||"";
+ document.getElementById("displayName").value=data.displayName||"";
+ document.getElementById("terms").innerHTML=data.terms.map((t,ti)=>`
+ <div class="term-card ${t.id===data.activeTermId?"active":""}">
+   <div class="term-head"><input class="input" style="max-width:320px" value="${esc(t.name)}" oninput="data.terms[${ti}].name=this.value"><span class="badge">${t.classes.length} کلاس</span></div>
+   <div class="card-actions"><button class="secondary" onclick="data.activeTermId='${t.id}';render()">فعال</button><button class="primary" onclick="addClass('${t.id}')">+ کلاس</button></div>
+   <div style="margin-top:12px">${t.classes.map((c,ci)=>classEditor(ti,ci,c)).join("")||'<div class="empty"><span>هنوز کلاسی اضافه نشده.</span></div>'}</div>
+ </div>`).join("");
+}
+function classEditor(ti,ci,c){
+ return `<div class="setting-card" style="background:#fafafa;margin:8px 0;padding:12px">
+ <div class="form-grid">
+ <div class="field full"><label>نام درس</label><input class="input" value="${esc(c.name)}" oninput="data.terms[${ti}].classes[${ci}].name=this.value"></div>
+ <div class="field"><label>روز</label><select class="select" onchange="data.terms[${ti}].classes[${ci}].day=this.value">${DAYS.map(d=>`<option value="${d[0]}" ${c.day===d[0]?"selected":""}>${d[1]}</option>`).join("")}</select></div>
+ <div class="field"><label>رنگ</label><select class="select" onchange="data.terms[${ti}].classes[${ci}].color=this.value">${COLORS.map((x,i)=>`<option value="${x}" ${c.color===x?"selected":""}>رنگ ${i+1}</option>`).join("")}</select></div>
+ <div class="field"><label>شروع</label><input class="input" type="time" value="${c.start}" oninput="data.terms[${ti}].classes[${ci}].start=this.value"></div>
+ <div class="field"><label>پایان</label><input class="input" type="time" value="${c.end}" oninput="data.terms[${ti}].classes[${ci}].end=this.value"></div>
+ <div class="field"><label>دانشکده</label><input class="input" value="${esc(c.faculty)}" oninput="data.terms[${ti}].classes[${ci}].faculty=this.value"></div>
+ <div class="field"><label>شماره کلاس</label><input class="input" value="${esc(c.room)}" oninput="data.terms[${ti}].classes[${ci}].room=this.value"></div>
+ <div class="field"><label>استاد</label><input class="input" value="${esc(c.teacher)}" oninput="data.terms[${ti}].classes[${ci}].teacher=this.value"></div>
+ <div class="field"><label>واحد</label><input class="input" type="number" value="${c.units||0}" oninput="data.terms[${ti}].classes[${ci}].units=Number(this.value)||0"></div>
+ </div>
+ <button class="danger-btn" onclick="data.terms[${ti}].classes.splice(${ci},1);render()">حذف کلاس</button>
+ </div>`;
+}
+function downloadUser(){
+ const username=document.getElementById("username").value.trim();
+ if(!/^[A-Za-z0-9_-]+$/.test(username)){alert("نام کاربری فقط انگلیسی، عدد، _ یا - باشد.");return;}
+ data.username=username;data.displayName=document.getElementById("displayName").value.trim()||username;
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=username+".json";a.click();URL.revokeObjectURL(a.href);
+ alert("فایل ساخته شد. آن را داخل پوشه users در GitHub قرار بده.");
+}
+function loadFile(e){
+ const file=e.target.files?.[0];if(!file)return;
+ const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.username||!x.terms)throw 0;data=x;render();}catch{alert("فایل برنامه معتبر نیست.")}};r.readAsText(file);
+}
+render();
+</script>
+</body></html>
