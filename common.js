@@ -1,8 +1,10 @@
 /* توابع مشترک schedule.html و editor.html */
 const DAYS=[{id:"sat",name:"شنبه"},{id:"sun",name:"یکشنبه"},{id:"mon",name:"دوشنبه"},{id:"tue",name:"سه‌شنبه"},{id:"wed",name:"چهارشنبه"},{id:"thu",name:"پنجشنبه"},{id:"fri",name:"جمعه"}];
-const COLORS=["#111318","#315cdb","#a04cbe","#0b8b68","#c56b19","#a73d4b","#4b6478","#6b5aa6"];
+const COLOR_NAMES={"#111318":"مشکی","#315cdb":"آبی","#a04cbe":"ارغوانی","#0b8b68":"سبز","#c56b19":"نارنجی","#a73d4b":"قرمز","#4b6478":"خاکستری","#6b5aa6":"بنفش","#b98900":"زرد","#d6457f":"صورتی","#0e8fa3":"فیروزه‌ای","#8a5a3c":"قهوه‌ای"};
+const COLORS=Object.keys(COLOR_NAMES); /* ۱۲ رنگ */
 const WEEK_LABELS={all:"همه هفته‌ها",odd:"هفته فرد",even:"هفته زوج"};
 const DAY_MS=86400000;
+const DAY_START=8,DAY_END=19; /* بازه‌ی ساعت‌های برنامه: ۰۸:۰۰ تا ۱۹:۰۰ */
 
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
 const safeColor=c=>/^#[0-9a-f]{3,8}$/i.test(c||"")?c:"#111318";

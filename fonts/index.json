@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "id": "vazirmatn-bold",
+      "name": "Vazirmatn Bold",
+      "file": "fonts/Vazirmatn-Bold.woff2",
+      "variable": false
+    },
+    {
+      "id": "vazirmatn-medium",
+      "name": "Vazirmatn Medium",
+      "file": "fonts/Vazirmatn-Medium.woff2",
+      "variable": false
+    }
+  ]
+}

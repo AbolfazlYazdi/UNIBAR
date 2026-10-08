@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg">
+<script src="fonts.js"></script>
+<title>مدیریت فونت‌ها</title>
+</head>
+<body>
+<div class="app-shell">
+<header class="topbar">
+  <div><div class="eyebrow">ابزار مدیر</div><h1>مدیریت فونت‌ها</h1></div>
+  <div class="top-actions"><a class="text-link" href="editor.html">ویرایشگر</a><a class="text-link" href="index.html">نمایش سایت</a></div>
+</header>
+<main class="main">
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۱. فونت‌های فعلی سایت</h2></div>
+  <div id="current"></div>
+</section>
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۲. افزودن فونت جدید</h2></div>
+  <p class="hint" style="margin:0 0 10px">فایل‌های <b>woff2</b>، woff، ttf یا otf را انتخاب کن. فایل woff2 کم‌حجم‌تر است و سایت را سریع‌تر نگه می‌دارد. اگر فونت «متغیر» (variable) است تیک مربوطه را بزن تا همه‌ی وزن‌ها کار کند.</p>
+  <label class="file-label">انتخاب فایل فونت<input id="pick" type="file" multiple accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"></label>
+  <div id="added" style="margin-top:12px"></div>
+</section>
+<section class="setting-card">
+  <div class="section-head" style="margin-top:0"><h2>۳. خروجی</h2></div>
+  <button class="primary" onclick="downloadIndex()">دریافت fonts/index.json</button>
+  <ol class="steps">
+    <li>فایل‌های فونت جدید را با <b>همان نام نشان‌داده‌شده</b> داخل پوشه‌ی <b>fonts</b> مخزن GitHub بگذار (دکمه‌ی «دریافت فایل» همان نام درست را می‌دهد).</li>
+    <li>فایل <b>index.json</b> دریافت‌شده را هم داخل پوشه‌ی <b>fonts</b> جایگزین کن.</li>
+    <li>تغییرات را commit کن. بعد از چند لحظه، دکمه‌ی <b>Aa</b> بالای صفحه‌ی کاربران این فونت‌ها را نشان می‌دهد.</li>
+  </ol>
+</section>
+</main>
+</div>
+<script src="common.js"></script>
+<script>
+/* هر آیتم: {id,name,file,variable, _file?: File (فقط برای فونت‌های تازه), _safe?: نام امن فایل} */
+let items=[];
+const EXT=/\.(woff2|woff|ttf|otf)$/i;
+const safeName=n=>{
+  const ext=(n.match(EXT)||[""])[0].toLowerCase();
+  const base=n.replace(EXT,"").replace(/[^A-Za-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"")||"font";
+  return base+ext;
+};
+const uniqueFile=(name,skip)=>{
+  let f=name,n=1;const dot=name.lastIndexOf(".");
+  while(items.some(x=>x!==skip&&x.file==="fonts/"+f)){f=name.slice(0,dot)+"-"+(++n)+name.slice(dot);}
+  return f;
+};
+let gen=0,prevFaces=[]; /* هر بار رندر، خانواده‌ی پیش‌نمایش تازه می‌سازیم تا بعد از حذف/جابه‌جایی آیتم‌ها فونت اشتباه نمایش داده نشود */
+function sample(i,x){return `<div class="font-sample" id="smp${i}" style="font-family:'Prev${gen}_${i}',sans-serif">نمونه متن فارسی ۱۲۳ — ۰۸:۰۰ تا ۱۹:۰۰ — ABC abc</div>`}
+async function loadPreview(i,x,g){
+  const el=()=>document.getElementById("smp"+i);
+  try{
+    const face=x._file?new FontFace(`Prev${g}_${i}`,await x._file.arrayBuffer()):new FontFace(`Prev${g}_${i}`,"url("+encodeURI(x.file)+")");
+    await face.load();
+    if(g!==gen)return; /* رندر جدیدتری انجام شده */
+    document.fonts.add(face);prevFaces.push(face);
+    if(el())el().classList.add("ok");
+  }catch{if(g===gen&&el()){el().textContent="این فایل به‌عنوان فونت خوانده نشد.";el().classList.add("bad");}}
+}
+function row(x,i){
+  const isNew=!!x._file;
+  return `<div class="font-row">
+   <div class="form-grid">
+    <div class="field"><label>نام نمایشی برای کاربر</label><input class="input" value="${esc(x.name)}" oninput="items[${i}].name=this.value"></div>
+    <div class="field"><label>فایل در پوشه fonts</label><input class="input" dir="ltr" readonly value="${esc(x.file.replace(/^fonts\//,""))}"></div>
+   </div>
+   <label class="chk"><input type="checkbox" ${x.variable?"checked":""} onchange="items[${i}].variable=this.checked"> فونت متغیر (variable)</label>
+   ${sample(i,x)}
+   <div class="card-actions">
+    ${isNew?`<button class="secondary" onclick="saveFile(${i})">دریافت فایل با نام درست</button>`:""}
+    <button class="danger-btn" onclick="removeItem(${i})">حذف</button>
+   </div>
+  </div>`;
+}
+function render(){
+  prevFaces.forEach(f=>document.fonts.delete(f));prevFaces=[];gen++;
+  const cur=items.filter(x=>!x._file),add=items.filter(x=>x._file);
+  const idx=x=>items.indexOf(x);
+  document.getElementById("current").innerHTML=cur.length?cur.map(x=>row(x,idx(x))).join(""):'<div class="empty"><span>هنوز فونتی ثبت نشده است.</span></div>';
+  document.getElementById("added").innerHTML=add.map(x=>row(x,idx(x))).join("");
+  const g=gen;items.forEach((x,i)=>loadPreview(i,x,g));
+}
+function removeItem(i){
+  if(!confirm("این فونت از فهرست حذف شود؟ (فایل داخل GitHub را هم خودت پاک کن.)"))return;
+  items.splice(i,1);render();
+}
+function saveFile(i){
+  const x=items[i],a=document.createElement("a");
+  a.href=URL.createObjectURL(x._file);a.download=x.file.replace(/^fonts\//,"");a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+document.getElementById("pick").addEventListener("change",e=>{
+  const files=[...e.target.files];
+  files.forEach(f=>{
+    if(!EXT.test(f.name)){alert(`«${f.name}» فونت معتبر نیست (فقط woff2، woff، ttf، otf).`);return;}
+    if(f.size>3*1024*1024&&!confirm(`«${f.name}» حجم زیادی دارد (${(f.size/1048576).toFixed(1)} مگابایت) و سایت را کند می‌کند. بهتر است نسخه woff2 را استفاده کنی. ادامه می‌دهی؟`))return;
+    const x={id:"",name:f.name.replace(EXT,"").replace(/[-_]+/g," "),file:"",variable:/variable|\[wght\]/i.test(f.name),_file:f};
+    x.file="fonts/"+uniqueFile(safeName(f.name),x);
+    items.push(x);
+  });
+  e.target.value="";render();
+});
+function downloadIndex(){
+  const names=new Set();
+  for(const x of items){
+    if(!String(x.name).trim()){alert("برای همه‌ی فونت‌ها یک نام نمایشی بنویس.");return;}
+    if(names.has(x.name.trim())){alert(`نام «${x.name}» تکراری است.`);return;}
+    names.add(x.name.trim());
+  }
+  const out={version:1,fonts:items.map(x=>({id:x.file.replace(/^fonts\//,"").replace(EXT,"").toLowerCase(),name:x.name.trim(),file:x.file,variable:!!x.variable}))};
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,2)+"\n"],{type:"application/json;charset=utf-8"}));
+  a.download="index.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const newOnes=items.filter(x=>x._file).length;
+  alert("فایل index.json ساخته شد."+(newOnes?`\nیادت نرود ${newOnes} فایل فونت جدید را هم داخل پوشه fonts بگذاری.`:""));
+}
+async function init(){
+  if(location.protocol==="file:"){document.getElementById("current").innerHTML='<div class="empty"><span>برای دیدن فونت‌های فعلی، صفحه را از طریق سرور باز کن. (افزودن فونت جدید بدون سرور هم کار می‌کند.)</span></div>';return;}
+  try{
+    const r=await fetch("fonts/index.json",{cache:"no-cache"});
+    if(!r.ok)throw 0;
+    items=((await r.json()).fonts||[]).filter(f=>f&&f.file&&f.name).map(f=>({id:f.id||"",name:f.name,file:f.file,variable:!!f.variable}));
+  }catch{items=[];}
+  render();
+}
+render();init();
+</script>
+</body></html>

@@ -2,20 +2,20 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg"><script src="fonts.js"></script>
 <title>ساخت فایل برنامه</title>
 </head>
 <body>
 <div class="app-shell">
 <header class="topbar">
   <div><div class="eyebrow">ابزار مدیر</div><h1>ساخت فایل کاربر</h1></div>
-  <a class="text-link" href="index.html">نمایش سایت</a>
+  <div class="top-actions"><a class="text-link" href="fonts.html">فونت‌ها</a><a class="text-link" href="index.html">نمایش سایت</a></div>
 </header>
 <main class="main">
 <section class="setting-card">
   <div class="section-head" style="margin-top:0"><h2>۱. اطلاعات کاربر</h2></div>
   <div class="form-grid">
-    <div class="field"><label>نام کاربری انگلیسی</label><input id="username" class="input" value="a" placeholder="مثلاً ali" pattern="[A-Za-z0-9_-]+" required oninput="data.username=this.value"></div>
+    <div class="field"><label>نام کاربری انگلیسی</label><input id="username" class="input" value="a" placeholder="مثلاً ali" pattern="[A-Za-z0-9_-]+" required oninput="data.username=this.value;scheduleCheck()"><div id="uidMsg" class="uid-msg"></div></div>
     <div class="field"><label>نام نمایشی</label><input id="displayName" class="input" value="Abolfazl" placeholder="مثلاً علی رضایی" oninput="data.displayName=this.value"></div>
   </div>
 </section>
@@ -39,6 +39,43 @@ const newSession=()=>({id:newId("s"),day:"sat",start:"08:00",end:"10:00",room:""
 const newCourse=n=>({id:newId("k"),name:"",teacher:"",faculty:"",units:0,color:COLORS[n%COLORS.length],sessions:[newSession()]});
 let data={version:2,username:"a",displayName:"Abolfazl",activeTermId:"t1",terms:[newTerm("t1","نیمسال اول ۱۴۰۴–۱۴۰۵")]};
 
+/* بررسی تکراری نبودن username (با فهرست users/index.json سایت) */
+let loadedUsername=null,checkTimer=null,knownUsers=null;
+let usersCache={t:0,list:null};
+async function fetchUsers(){
+ if(location.protocol==="file:")return null;
+ if(usersCache.list&&Date.now()-usersCache.t<15000)return usersCache.list; /* درخواست تکراری هنگام تایپ نزن */
+ try{
+  const r=await fetch("users/index.json",{cache:"no-cache"});
+  if(!r.ok)return null;
+  const list=((await r.json()).users||[]).map(u=>String(u.username).toLowerCase());
+  usersCache={t:Date.now(),list};
+  return list;
+ }catch{return null}
+}
+/* "free" | "taken" | "unknown" */
+async function checkUsername(name){
+ const n=name.trim().toLowerCase();
+ if(!n)return "free";
+ if(loadedUsername&&n===loadedUsername)return "free"; /* ویرایش همان فایل خودش */
+ const list=await fetchUsers();
+ if(!list)return "unknown";
+ knownUsers=list;
+ return list.includes(n)?"taken":"free";
+}
+function scheduleCheck(){
+ clearTimeout(checkTimer);
+ const box=document.getElementById("uidMsg");
+ box.textContent="";box.className="uid-msg";
+ checkTimer=setTimeout(async()=>{
+  const v=document.getElementById("username").value;
+  if(!v.trim()||!/^[A-Za-z0-9_-]+$/.test(v.trim()))return;
+  const r=await checkUsername(v);
+  if(document.getElementById("username").value!==v)return;
+  if(r==="taken"){box.textContent="این username قبلاً استفاده شده؛ یک نام دیگر انتخاب کن.";box.className="uid-msg bad";}
+  else if(r==="free"&&v.trim().toLowerCase()!==loadedUsername){box.textContent="✓ این username آزاد است.";box.className="uid-msg good";}
+ },400);
+}
 function syncUserFields(){
  document.getElementById("username").value=data.username||"";
  document.getElementById("displayName").value=data.displayName||"";
@@ -48,7 +85,6 @@ function addTerm(){
  data.activeTermId=data.terms.at(-1).id;
  render();
 }
-function setActive(ti){data.activeTermId=data.terms[ti].id;render();}
 function setAnchor(ti,key,val){data.terms[ti].weekAnchor[key]=val;render();}
 function addCourse(ti){const t=data.terms[ti];t.courses.push(newCourse(t.courses.length));render();}
 function removeCourse(ti,ci){
@@ -62,12 +98,28 @@ function removeSession(ti,ci,si){
  c.sessions.splice(si,1);render();
 }
 
+/* انتخاب ساعت ۲۴ ساعته (مثلاً ۷ عصر = ۱۹:۰۰)؛ مستقل از تنظیم ۱۲/۲۴ ساعته‌ی مرورگر */
+function timeSel(ti,ci,si,key,val){
+ const [h,m]=(norm(val)||"08:00").split(":");
+ const hs=[];for(let x=DAY_START;x<=DAY_END;x++)hs.push(String(x).padStart(2,"0"));
+ if(!hs.includes(h))hs.push(h);
+ const ms=[];for(let x=0;x<60;x+=5)ms.push(String(x).padStart(2,"0"));
+ if(!ms.includes(m))ms.push(m);
+ const call=`setT(this,${ti},${ci},${si},'${key}')`;
+ const opts=(arr,cur)=>arr.sort().map(x=>`<option ${x===cur?"selected":""}>${x}</option>`).join("");
+ return `<div class="t24" dir="ltr"><select class="select th" aria-label="ساعت" onchange="${call}">${opts(hs,h)}</select><b>:</b><select class="select tm" aria-label="دقیقه" onchange="${call}">${opts(ms,m)}</select></div>`;
+}
+function setT(el,ti,ci,si,key){
+ const w=el.parentNode;let h=w.querySelector(".th").value,m=w.querySelector(".tm").value;
+ if(+h>=DAY_END)m="00"; /* بعد از ساعت پایانیِ برنامه دقیقه‌ای نیست */
+ data.terms[ti].courses[ci].sessions[si][key]=h+":"+m;render();
+}
 function sessionHTML(ti,ci,si,s,isBad){
  const P=`data.terms[${ti}].courses[${ci}].sessions[${si}]`;
  return `<div class="session-row ${isBad?"clash":""}">
   <div class="field"><label>روز</label><select class="select" onchange="${P}.day=this.value;render()">${DAYS.map(d=>`<option value="${d.id}" ${s.day===d.id?"selected":""}>${d.name}</option>`).join("")}</select></div>
-  <div class="field"><label>شروع</label><input class="input" type="time" value="${esc(norm(s.start))}" onchange="${P}.start=this.value;render()"></div>
-  <div class="field"><label>پایان</label><input class="input" type="time" value="${esc(norm(s.end))}" onchange="${P}.end=this.value;render()"></div>
+  <div class="field"><label>شروع (۲۴ ساعته)</label>${timeSel(ti,ci,si,"start",s.start)}</div>
+  <div class="field"><label>پایان (۲۴ ساعته)</label>${timeSel(ti,ci,si,"end",s.end)}</div>
   <div class="field"><label>شماره کلاس</label><input class="input" value="${esc(s.room)}" oninput="${P}.room=this.value"></div>
   <div class="field"><label>هفته‌ها</label><select class="select" onchange="${P}.weeks=this.value;render()">${Object.keys(WEEK_LABELS).map(k=>`<option value="${k}" ${s.weeks===k?"selected":""}>${WEEK_LABELS[k]}</option>`).join("")}</select></div>
   <button class="danger-btn" title="حذف جلسه" onclick="removeSession(${ti},${ci},${si})">✕</button>
@@ -82,7 +134,7 @@ function courseHTML(ti,ci,c,bad){
   <div class="field"><label>استاد</label><input class="input" value="${esc(c.teacher)}" oninput="${P}.teacher=this.value"></div>
   <div class="field"><label>دانشکده</label><input class="input" value="${esc(c.faculty)}" oninput="${P}.faculty=this.value"></div>
   <div class="field"><label>واحد</label><input class="input" type="number" min="0" value="${Number(c.units)||0}" oninput="${P}.units=Number(this.value)||0"></div>
-  <div class="field"><label>رنگ</label><select class="select" style="border-right:8px solid ${safeColor(c.color)}" onchange="${P}.color=this.value;render()">${colors.map((x,i)=>`<option value="${esc(x)}" ${c.color===x?"selected":""}>${i<COLORS.length?"رنگ "+(i+1):"رنگ فایل ("+esc(x)+")"}</option>`).join("")}</select></div>
+  <div class="field full"><label>رنگ</label><div class="swatches" role="radiogroup" aria-label="رنگ درس">${colors.map(x=>{const nm=COLOR_NAMES[x]||"رنگ فایل";return `<button type="button" role="radio" aria-checked="${c.color===x}" class="sw ${c.color===x?"on":""}" style="--c:${safeColor(x)}" title="${nm}" onclick="${P}.color='${safeColor(x)}';render()"><i></i><span>${nm}</span></button>`}).join("")}</div></div>
  </div>
  <div class="session-head"><strong>جلسه‌های هفتگی</strong><button class="secondary" onclick="addSession(${ti},${ci})">+ جلسه</button></div>
  ${c.sessions.map((s,si)=>sessionHTML(ti,ci,si,s,bad.has(s.id))).join("")}
@@ -95,14 +147,14 @@ function termHTML(t,ti){
  const a=t.weekAnchor,p=weekParity({weekAnchor:a},new Date());
  const warn=pairs.length?`<div class="warn-box"><strong>⚠ تداخل زمانی</strong>${pairs.map(([x,y])=>`<div>${esc(x.c.name||"بدون نام")} و ${esc(y.c.name||"بدون نام")} — ${dayName(x.s.day)} ${norm(x.s.start)}–${norm(x.s.end)} / ${norm(y.s.start)}–${norm(y.s.end)}</div>`).join("")}</div>`:"";
  return `
- <div class="term-card ${t.id===data.activeTermId?"active":""}">
+ <div class="term-card ${ti===data.terms.length-1?"active":""}">
   <div class="term-head"><input class="input" style="max-width:320px" value="${esc(t.name)}" oninput="data.terms[${ti}].name=this.value"><span class="badge">${t.courses.length} درس</span></div>
   <div class="anchor-box">
    <div class="field"><label>تاریخ مبنا (یک روز از هفته‌ای که نوعش را می‌دانی؛ پیش‌فرض امروز)</label><input class="input" type="date" value="${esc(a.date)}" onchange="setAnchor(${ti},'date',this.value)"></div>
    <div class="field"><label>آن هفته فرد است یا زوج؟</label><select class="select" onchange="setAnchor(${ti},'parity',this.value)"><option value="" ${!a.parity?"selected":""}>مشخص نیست</option><option value="odd" ${a.parity==="odd"?"selected":""}>هفته فرد</option><option value="even" ${a.parity==="even"?"selected":""}>هفته زوج</option></select></div>
    <div class="hint">${p?`با این تنظیم، هفته‌ی جاری «${WEEK_LABELS[p]}» است و سایت خودش هفته‌های بعد را از روی تاریخ حساب می‌کند.`:"برای فعال شدن فرد/زوج، تاریخ و نوع هفته را مشخص کن."}</div>
   </div>
-  <div class="card-actions"><button class="secondary" onclick="setActive(${ti})">${t.id===data.activeTermId?"✓ فعال":"فعال"}</button><button class="primary" onclick="addCourse(${ti})">+ درس</button></div>
+  <div class="card-actions"><button class="primary" onclick="addCourse(${ti})">+ درس</button>${ti===data.terms.length-1?'<span class="badge ok" style="align-self:center">ترم فعال (آخرین ترم)</span>':""}</div>
   ${warn}
   <div style="margin-top:12px">${t.courses.map((c,ci)=>courseHTML(ti,ci,c,bad)).join("")||'<div class="empty"><span>هنوز درسی اضافه نشده.</span></div>'}</div>
  </div>`;
@@ -115,7 +167,7 @@ function buildOutput(username){
  return {
   version:2,username,
   displayName:document.getElementById("displayName").value.trim()||username,
-  activeTermId:data.activeTermId,
+  activeTermId:data.terms.at(-1).id,
   terms:data.terms.map(t=>({
    id:t.id,name:t.name,weekAnchor:cleanAnchor(t.weekAnchor),
    courses:t.courses.map(c=>({
@@ -125,9 +177,12 @@ function buildOutput(username){
   }))
  };
 }
-function downloadUser(){
+async function downloadUser(){
  const username=document.getElementById("username").value.trim();
  if(!/^[A-Za-z0-9_-]+$/.test(username)){alert("نام کاربری فقط انگلیسی، عدد، _ یا - باشد.");return;}
+ const st=await checkUsername(username);
+ if(st==="taken"){alert(`username «${username}» قبلاً استفاده شده است.\nبرای فایل جدید یک username دیگر انتخاب کن (یا اگر قصد ویرایش همان کاربر را داری، ابتدا فایلش را با «ویرایش فایل موجود» باز کن).`);return;}
+ if(st==="unknown"&&!confirm("بررسی تکراری نبودن username ممکن نشد (سایت از طریق سرور باز نشده یا users/index.json در دسترس نیست).\nمطمئنی که این username قبلاً استفاده نشده؟"))return;
  const problems=[];
  data.terms.forEach(t=>{
   let needAnchor=false;
@@ -135,6 +190,7 @@ function downloadUser(){
    if(!String(c.name).trim())problems.push(`«${t.name}»: یک درس بدون نام وجود دارد.`);
    c.sessions.forEach(s=>{
     if(!norm(s.start)||!norm(s.end)||mins(s.end)<=mins(s.start))problems.push(`«${c.name||"بدون نام"}»: ساعت شروع و پایان یک جلسه معتبر نیست.`);
+    else if(mins(s.start)<DAY_START*60||mins(s.end)>DAY_END*60)problems.push(`«${c.name||"بدون نام"}»: ساعت جلسه باید بین ${String(DAY_START).padStart(2,"0")}:00 و ${DAY_END}:00 باشد.`);
     if(s.weeks&&s.weeks!=="all")needAnchor=true;
    });
   });
@@ -158,7 +214,7 @@ function loadFile(e){
    const d=migrate(x);
    if(!d.terms.length){d.terms.push(newTerm("t1","ترم جدید"));d.activeTermId="t1";}
    d.terms.forEach(t=>{if(!t.weekAnchor)t.weekAnchor={date:isoDate(new Date()),parity:""};});
-   data=d;syncUserFields();render();
+   data=d;loadedUsername=String(d.username).toLowerCase();syncUserFields();render();scheduleCheck();
    if(old)alert("این فایل با ساختار قدیمی بود و به ساختار جدید (هر درس یک بار با چند جلسه) تبدیل شد. بعد از بررسی دوباره ذخیره کن.");
   }catch{alert("فایل برنامه معتبر نیست.")}
  };

@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg">
+<meta name="theme-color" content="#111318"><link rel="stylesheet" href="styles.css"><link rel="icon" href="icon.svg"><script src="fonts.js"></script>
 <title>برنامه</title>
 </head>
 <body>
@@ -13,7 +13,7 @@
     <h1 id="pageTitle">امروز</h1>
     <div class="dateline" id="dateLine"></div>
   </div>
-  <a class="text-link" href="index.html">کاربران</a>
+  <div class="top-actions"><div data-font-picker></div><a class="text-link" href="index.html">خروج</a></div>
 </header>
 <main id="app" class="main"></main>
 <nav class="bottom-nav">
@@ -27,7 +27,9 @@
 const HOUR_PX=72;
 let state=null,currentView="today",weekView=null,clash=new Set(),lastKey="";
 const username=new URLSearchParams(location.search).get("user");
-const active=()=>state&&(state.terms.find(t=>t.id===state.activeTermId)||state.terms[0]);
+let viewTermId=null;
+const latestTerm=()=>state&&state.terms[state.terms.length-1]; /* آخرین ترم = ترم فعال پیش‌فرض */
+const active=()=>state&&(state.terms.find(t=>t.id===viewTermId)||latestTerm());
 const addDays=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
 const nowMinutes=d=>d.getHours()*60+d.getMinutes();
 const place=(c,s)=>[c.faculty,s.room].filter(Boolean).join(" · ");
@@ -110,18 +112,18 @@ function layout(items){
   return out;
 }
 function renderWeekDesktop(p,showToday){
-  let h0=8,h1=18;
-  active().courses.forEach(c=>c.sessions.forEach(s=>{h0=Math.min(h0,Math.floor(mins(s.start)/60));h1=Math.max(h1,Math.ceil(mins(s.end)/60));}));
-  h1=Math.min(Math.max(h1,h0+1),24);
+  const h0=DAY_START,h1=DAY_END;
   const hours=h1-h0,height=hours*HOUR_PX,tid=DAYS[dayIndex(new Date())].id;
   const heads=`<div class="week-head"></div>`+DAYS.map(d=>`<div class="week-head ${showToday&&d.id===tid?"today":""}">${d.name}</div>`).join("");
   const timeCol=`<div class="time-col">${Array.from({length:hours},(_,i)=>`<div class="time-cell">${String(h0+i).padStart(2,"0")}:00</div>`).join("")}</div>`;
   const cols=DAYS.map(d=>{
     const ev=layout(listDay(d.id,p)).map(({o,lane,n})=>{
       const {c,s}=o;
-      const top=(mins(s.start)-h0*60)*HOUR_PX/60;
-      const h=Math.max(mins(s.end)-mins(s.start),30)*HOUR_PX/60-2;
-      return `<div class="week-event" style="top:${top}px;height:${h}px;right:calc(${lane*100/n}% + 3px);left:auto;width:calc(${100/n}% - 6px);background:${safeColor(c.color)}" title="${esc(c.name)}"><strong>${clash.has(s.id)?"⚠ ":""}${esc(c.name)}</strong><span class="ev-time">${norm(s.start)}–${norm(s.end)}</span>${s.room?`<span>${esc(s.room)}</span>`:""}</div>`;
+      const st=Math.max(mins(s.start),h0*60),en=Math.min(mins(s.end),h1*60);
+      if(en<=st)return "";
+      const top=(st-h0*60)*HOUR_PX/60;
+      const h=Math.max(en-st,30)*HOUR_PX/60-2;
+      return `<div class="week-event" style="top:${top}px;height:${h}px;right:calc(${lane*100/n}% + 3px);left:auto;width:calc(${100/n}% - 6px);background:${safeColor(c.color)}" title="${esc(c.name)}"><strong>${clash.has(s.id)?"⚠ ":""}${esc(c.name)}</strong><span class="ev-time">${norm(s.start)}–${norm(s.end)}</span>${s.room?`<span>${esc(s.room)}</span>`:""}${!p&&s.weeks!=="all"?`<span class="ev-wk">${s.weeks==="odd"?"فرد":"زوج"}</span>`:""}</div>`;
     }).join("");
     return `<div class="day-col" style="height:${height}px;min-height:${height}px">${ev}</div>`;
   }).join("");
@@ -137,8 +139,9 @@ function renderWeekMobile(p,showToday){
 function renderWeek(){
   const t=active();
   if(!t)return `<div class="empty">ترمی ثبت نشده.</div>`;
-  const cur=weekParity(t,new Date()),p=cur?(weekView||cur):null,showToday=!p||p===cur;
-  const seg=cur?`<div class="seg">${["odd","even"].map(k=>`<button data-wk="${k}" class="${k===p?"on":""}">${WEEK_LABELS[k]}${k===cur?" · این هفته":""}</button>`).join("")}</div>`:"";
+  const cur=weekParity(t,new Date()),mode=cur?(weekView||cur):"all";
+  const p=mode==="all"?null:mode,showToday=!p||p===cur;
+  const seg=cur?`<div class="seg">${["all","odd","even"].map(k=>`<button data-wk="${k}" class="${k===mode?"on":""}">${k==="all"?"کل هفته":WEEK_LABELS[k]}${k===cur?" · این هفته":""}</button>`).join("")}</div>`:"";
   return seg+renderWeekDesktop(p,showToday)+renderWeekMobile(p,showToday);
 }
 
@@ -148,20 +151,32 @@ function anchorText(t){
   if(!a)return "هفته‌ی فرد/زوج برای این ترم تنظیم نشده";
   return `هفته‌ی مبنا: ${faDate(new Date(parseISO(a.date)),{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"})} — ${WEEK_LABELS[a.parity]}`;
 }
+function termDetails(t){
+  if(!t.courses.length)return `<div class="empty"><span>درسی ثبت نشده.</span></div>`;
+  return t.courses.map(c=>`<article class="class-card" style="--card-color:${safeColor(c.color)}"><div class="class-top"><div class="class-name">${esc(c.name)}</div>${c.units?`<span class="pill">${esc(c.units)} واحد</span>`:""}</div><div class="class-meta">${c.teacher?`<span class="pill">استاد: ${esc(c.teacher)}</span>`:""}${c.faculty?`<span class="pill">${esc(c.faculty)}</span>`:""}</div><ul class="sess-list">${c.sessions.map(s=>`<li><b>${dayName(s.day)}</b> <span class="ltr">${norm(s.start)}–${norm(s.end)}</span>${s.room?` · کلاس ${esc(s.room)}`:""}${s.weeks!=="all"?` · ${WEEK_LABELS[s.weeks]}`:""}</li>`).join("")}</ul></article>`).join("");
+}
 function renderTerms(){
   const ts=state.terms||[];
   if(!ts.length)return `<div class="empty">ترمی ثبت نشده.</div>`;
-  const a=active();
-  return ts.map(t=>{
+  const a=active(),last=latestTerm();
+  const list=[...ts].reverse().map(t=>{
     const units=t.courses.reduce((n,c)=>n+(Number(c.units)||0),0);
-    return `<div class="term-card ${t===a?"active":""}"><div class="term-head"><div class="term-title">${esc(t.name)}</div><span class="badge">${t.courses.length} درس · ${units} واحد</span></div><div class="term-sub">${esc(anchorText(t))}</div></div>`;
+    return `<button type="button" class="term-card pick ${t===a?"active":""}" data-term="${esc(t.id)}"><div class="term-head"><div class="term-title">${esc(t.name)}${t===last?' <span class="badge ok">ترم فعال</span>':""}</div><span class="badge">${t.courses.length} درس · ${units} واحد</span></div><div class="term-sub">${esc(anchorText(t))}</div></button>`;
   }).join("");
+  return list+`<div class="section-head"><h2>درس‌های «${esc(a.name)}»</h2><span>${a.courses.length} درس</span></div>`+termDetails(a);
+}
+function termBar(){
+  const ts=state.terms||[];
+  if(ts.length<2)return "";
+  const a=active(),last=latestTerm();
+  const chips=[...ts].reverse().map(t=>`<button type="button" data-term="${esc(t.id)}" class="${t===a?"on":""}">${esc(t.name)}${t===last?" · فعال":""}</button>`).join("");
+  return `<div class="term-chips">${chips}</div>${a!==last?`<div class="term-note">در حال مشاهده‌ی ترم «${esc(a.name)}» هستی، نه ترم فعال. <button type="button" data-term="${esc(last.id)}">بازگشت به ترم فعال</button></div>`:""}`;
 }
 
 /* ---------- هدر و رندر ---------- */
 function updateHeader(){
   const now=new Date(),t=active(),p=t?weekParity(t,now):null;
-  document.getElementById("dateLine").innerHTML=`<span>${DAYS[dayIndex(now)].name}</span><span>${faDate(now,{day:"numeric",month:"long",year:"numeric"})}</span>${p?`<span class="week-badge ${p}">${WEEK_LABELS[p]}</span>`:""}`;
+  document.getElementById("dateLine").innerHTML=`<span>${faDate(now,{day:"numeric",month:"long",year:"numeric"})}</span>${p?`<span class="week-badge ${p}">${WEEK_LABELS[p]}</span>`:""}`;
 }
 function render(){
   const now=new Date();
@@ -172,18 +187,24 @@ function render(){
   clash=t?clashSet(t):new Set();
   document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.view===currentView));
   document.getElementById("pageTitle").textContent={today:"امروز "+DAYS[dayIndex(now)].name,week:"هفته",terms:"ترم‌ها"}[currentView];
-  document.getElementById("app").innerHTML=currentView==="today"?renderToday():currentView==="week"?renderWeek():renderTerms();
+  const body=currentView==="today"?renderToday():currentView==="week"?renderWeek():renderTerms();
+  document.getElementById("app").innerHTML=(currentView==="terms"?"":termBar())+body;
 }
-const fetchJson=url=>fetch(url+"?"+Date.now()).then(r=>{if(!r.ok)throw new Error("http");return r.json()});
+const fetchJson=url=>fetch(url,{cache:"no-cache"}).then(r=>{if(!r.ok)throw new Error("http");return r.json()}); /* بازبینی با ETag؛ بدون دانلود دوباره اگر تغییری نکرده */
 const showError=(t,s)=>{document.getElementById("app").innerHTML=`<div class="empty"><strong>${t}</strong><span>${s}</span></div>`};
 async function init(){
   updateHeader();
   if(location.protocol==="file:"){showError("سایت باید از طریق سرور باز شود","با دابل‌کلیک روی فایل کار نمی‌کند. از GitHub Pages یا یک سرور محلی (python -m http.server) استفاده کن.");return;}
   try{
+    /* فایل کاربر هم‌زمان با فهرست کاربران خوانده می‌شود تا یک رفت‌وبرگشت شبکه کم شود */
+    const guessPath=/^[A-Za-z0-9_-]+$/.test(username||"")?`users/${username}.json`:null;
+    const guess=guessPath?fetchJson(guessPath).catch(()=>null):Promise.resolve(null);
     const idx=await fetchJson("users/index.json");
     const u=(idx.users||[]).find(x=>x.username===username);
     if(!u){showError("کاربر پیدا نشد","نام کاربری را بررسی کن.");return;}
-    state=migrate(await fetchJson(u.file));
+    let raw=u.file===guessPath?await guess:null;
+    if(!raw)raw=await fetchJson(u.file);
+    state=migrate(raw);
     document.getElementById("userLabel").textContent=state.displayName?`${state.displayName} · @${state.username}`:`@${state.username}`;
     document.title=state.displayName||state.username||"برنامه";
     render();
@@ -192,7 +213,9 @@ async function init(){
 document.querySelectorAll(".nav-item").forEach(b=>b.onclick=()=>{currentView=b.dataset.view;render()});
 document.getElementById("app").addEventListener("click",e=>{
   const b=e.target.closest("[data-wk]");
-  if(b){weekView=b.dataset.wk;render();}
+  if(b){weekView=b.dataset.wk;render();return;}
+  const tb=e.target.closest("[data-term]");
+  if(tb){viewTermId=tb.dataset.term;weekView=null;render();}
 });
 /* به‌روزرسانی خودکار: تغییر کلاس جاری/بعدی، عوض شدن روز و هفته */
 setInterval(()=>{if(!state)return;if(isoDate(new Date())!==lastKey||currentView==="today")render();},30000);
