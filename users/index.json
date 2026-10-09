@@ -1,9 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "users": [
     {
       "username": "a",
-      "displayName": "Abolfazl",
       "file": "users/a.json"
     }
   ]

@@ -22,7 +22,7 @@ button{cursor:pointer}
 .topbar::after{content:"";position:absolute;left:0;right:0;top:100%;height:12px;background:linear-gradient(var(--bg),rgba(246,247,249,0));pointer-events:none}
 .eyebrow{font-size:12px;color:var(--muted);margin-bottom:3px}
 h1{font-size:28px;letter-spacing:-.5px;margin:0}
-.main{padding:4px 14px 28px}
+.main{padding:16px 14px 28px} /* ≥ ارتفاع محوشدگی نوار بالا (12px) تا کارت‌ها زیر آن نروند */
 .hero{background:var(--accent);color:#fff;border-radius:28px;padding:22px;margin-bottom:16px;box-shadow:0 18px 45px rgba(15,17,21,.15)}
 .hero .label{opacity:.65;font-size:13px}
 .hero h2{font-size:25px;margin:7px 0 3px}
@@ -124,6 +124,18 @@ button.term-card.pick{display:block;width:100%;text-align:right;color:inherit;fo
 .session-row .danger-btn{padding:11px 13px}
 .anchor-box{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:16px}
 .anchor-box .field{margin-bottom:0}
+.jbtn{text-align:center;cursor:pointer;font:inherit}
+.jcal{width:100%;max-width:320px;margin:10px auto 0;padding:10px;border:1px solid var(--line);border-radius:16px;background:#fff;box-sizing:border-box}
+.jnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.jnav b{flex:1;text-align:center}
+.jnav button{width:36px;height:36px;border:1px solid var(--line);background:#fafafa;border-radius:10px;font-size:18px;cursor:pointer}
+.jgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;direction:rtl}
+.jh{font-size:11px;color:var(--muted);padding:4px 0}
+.jd{aspect-ratio:1;min-width:0;padding:0;border:0;border-radius:10px;background:transparent;font:inherit;font-size:13px;cursor:pointer}
+.jd:hover{background:#f1f1f3}
+.jh.fri,.jd.fri{color:#c0392b}
+.jd.today{outline:1px solid #9ca3af}
+.jd.sel{background:#111318;color:#fff}
 .uid-msg{font-size:11px;margin-top:6px;min-height:16px;line-height:1.7}
 .uid-msg.bad{color:var(--danger);font-weight:700}
 .uid-msg.good{color:var(--success)}
@@ -144,7 +156,7 @@ button.term-card.pick{display:block;width:100%;text-align:right;color:inherit;fo
 .file-label input{display:none}
 @media(min-width:800px){
   body{padding-bottom:0}
-  .main{padding:4px 24px 50px}
+  .main{padding:16px 24px 50px}
   .topbar{padding:26px 28px 18px}
   .bottom-nav{position:static;border:0;background:transparent;height:auto;padding:0 24px 20px;justify-content:flex-start}
   .nav-item{flex:0 0 auto;padding:9px 18px;flex-direction:row;gap:7px}
