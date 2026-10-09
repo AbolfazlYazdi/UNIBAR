@@ -1,0 +1,63 @@
+{
+  "version": 2,
+  "username": "test",
+  "displayName": "Test",
+  "activeTermId": "t1",
+  "terms": [
+    {
+      "id": "t1",
+      "name": "Ù†ÛŒÙ…Ø³Ø§Ù„ Ø§ÙˆÙ„",
+      "number": 1,
+      "weekAnchor": {
+        "date": "2026-10-10",
+        "parity": "even"
+      },
+      "courses": [
+        {
+          "id": "kmv1i3t7kerga",
+          "name": "Test",
+          "teacher": "T",
+          "faculty": "T",
+          "units": 1,
+          "color": "#0e8fa3",
+          "sessions": [
+            {
+              "id": "smv1i3t7mg44c",
+              "day": "sat",
+              "start": "08:00",
+              "end": "09:30",
+              "room": "1",
+              "weeks": "all"
+            },
+            {
+              "id": "smv1i4d45wwu1",
+              "day": "sun",
+              "start": "08:00",
+              "end": "09:30",
+              "room": "1",
+              "weeks": "all"
+            }
+          ]
+        },
+        {
+          "id": "kmv1i4sly9akc",
+          "name": "Test2",
+          "teacher": "Tt",
+          "faculty": "Tt",
+          "units": 1,
+          "color": "#315cdb",
+          "sessions": [
+            {
+              "id": "smv1i4slyy9sc",
+              "day": "sat",
+              "start": "10:00",
+              "end": "11:30",
+              "room": "4",
+              "weeks": "even"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
