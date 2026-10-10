@@ -15,8 +15,8 @@
 <section class="setting-card">
   <div class="section-head" style="margin-top:0"><h2>۱. اطلاعات کاربر</h2></div>
   <div class="form-grid">
-    <div class="field"><label>نام کاربری انگلیسی</label><input id="username" class="input" dir="ltr" value="a" placeholder="ABOL" autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[A-Za-z0-9_-]{3,}" minlength="3" required oninput="data.username=this.value;scheduleCheck()"><div id="uidMsg" class="uid-msg"></div></div>
-    <div class="field"><label>نام نمایشی</label><input id="displayName" class="input" value="Abolfazl" placeholder="مثلاً ABOL" oninput="data.displayName=this.value"></div>
+    <div class="field"><label>نام کاربری انگلیسی</label><input id="username" class="input" dir="ltr" value="" placeholder="ABOL" autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[A-Za-z0-9_-]{3,}" minlength="3" required oninput="data.username=this.value;scheduleCheck()"><div id="uidMsg" class="uid-msg"></div></div>
+    <div class="field"><label>نام نمایشی</label><input id="displayName" class="input" value="" placeholder="مثلاً ABOL" oninput="data.displayName=this.value"></div>
   </div>
 </section>
 <section class="setting-card">
@@ -37,7 +37,7 @@
 const newTerm=(id,name,number)=>({id,name,number:number||1,weekAnchor:{date:isoDate(new Date()),parity:""},courses:[]});
 const newSession=()=>({id:newId("s"),day:"sat",start:"08:00",end:"10:00",room:"",weeks:"all"});
 const newCourse=n=>({id:newId("k"),name:"",teacher:"",faculty:"",units:0,color:COLORS[n%COLORS.length],sessions:[newSession()]});
-let data={version:2,username:"a",displayName:"Abolfazl",activeTermId:"t1",terms:[newTerm("t1","نیمسال اول ۱۴۰۴–۱۴۰۵")]};
+let data={version:2,username:"",displayName:"",activeTermId:"",terms:[]};
 
 /* بررسی تکراری نبودن username (با فهرست users/index.json سایت) */
 let loadedUsername=null,checkTimer=null,knownUsers=null;
@@ -117,7 +117,6 @@ function calHTML(ti,iso){
 }
 function addCourse(ti){const t=data.terms[ti];t.courses.push(newCourse(t.courses.length));render();}
 function removeTerm(ti){
- if(data.terms.length<=1){alert("هر کاربر دست‌کم یک ترم لازم دارد؛ آخرین ترم را نمی‌شود حذف کرد.");return;}
  const t=data.terms[ti];
  if(!confirm(`ترم «${t.name||"بدون نام"}» و ${t.courses.length} درس آن حذف شود؟`))return;
  data.terms.splice(ti,1);
@@ -200,7 +199,7 @@ function termHTML(t,ti,arr){
  </div>`;
 }
 function render(){
- document.getElementById("terms").innerHTML=data.terms.map(termHTML).join("");
+ document.getElementById("terms").innerHTML=data.terms.map(termHTML).join("")||'<div class="empty"><span>هنوز ترمی اضافه نشده. با دکمه‌ی «+ ترم» شروع کن.</span></div>';
 }
 
 function buildOutput(username){
@@ -217,6 +216,21 @@ function buildOutput(username){
   })).sort((a,b)=>a.number-b.number) /* ترم‌ها به ترتیب شماره ذخیره می‌شوند */
  };
 }
+/* users/index.json به‌روز‌شده: ورودی کاربر (فقط username و file، بدون displayName) اضافه یا جایگزین می‌شود؛ بقیه‌ی ورودی‌ها دست‌نخورده می‌مانند */
+async function buildIndex(username){
+ let idx={version:1,users:[]};
+ if(location.protocol!=="file:"){
+  try{const r=await fetch("users/index.json",{cache:"no-cache"});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.users))idx={version:j.version||1,users:j.users};}}catch{}
+ }
+ const key=username.toLowerCase(),i=idx.users.findIndex(u=>String(u.username).toLowerCase()===key);
+ const entry={username,file:"users/"+username+".json"};
+ if(i>=0)idx.users[i]=entry;else idx.users.push(entry);
+ return idx;
+}
+function saveBlob(obj,name){
+ const blob=new Blob([JSON.stringify(obj,null,2)],{type:"application/json;charset=utf-8"});
+ const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
 async function downloadUser(){
  const username=document.getElementById("username").value.trim();
  if(!/^[A-Za-z0-9_-]+$/.test(username)){alert("نام کاربری فقط انگلیسی، عدد، _ یا - باشد.");return;}
@@ -225,6 +239,7 @@ async function downloadUser(){
  if(st==="taken"){alert(`username «${username}» قبلاً استفاده شده است.\nبرای فایل جدید یک username دیگر انتخاب کن (یا اگر قصد ویرایش همان کاربر را داری، ابتدا فایلش را با «ویرایش فایل موجود» باز کن).`);return;}
  if(st==="unknown"&&!confirm("بررسی تکراری نبودن username ممکن نشد (سایت از طریق سرور باز نشده یا users/index.json در دسترس نیست).\nمطمئنی که این username قبلاً استفاده نشده؟"))return;
  const problems=[];
+ if(!data.terms.length)problems.push("هنوز هیچ ترمی اضافه نکرده‌ای.");
  const nos=data.terms.map(t=>t.number);
  if(nos.some(n=>cleanTermNo(n)===null)||new Set(nos).size!==nos.length)problems.push("شماره‌ی ترم‌ها باید عدد ۱ تا ۹۹ و یکتا باشند (هر ترم یک شماره‌ی متفاوت).");
  data.terms.forEach(t=>{
@@ -241,9 +256,10 @@ async function downloadUser(){
  });
  if(problems.length){alert("قبل از ذخیره این موارد را اصلاح کن:\n\n"+problems.join("\n"));return;}
  const out=buildOutput(username);
- const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json;charset=utf-8"});
- const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=username+".json";a.click();URL.revokeObjectURL(a.href);
- alert("فایل ساخته شد. آن را داخل پوشه users در GitHub قرار بده.");
+ const idx=await buildIndex(username);
+ saveBlob(out,username+".json");
+ setTimeout(()=>saveBlob(idx,"index.json"),400);
+ alert("دو فایل ساخته شد:\n• "+username+".json\n• index.json (فهرست به‌روزشده‌ی کاربران)\nهر دو را داخل پوشه‌ی users در GitHub قرار بده (index.json قبلی را جایگزین کن). اگر مرورگر پرسید، دانلود چند فایل را اجازه بده.");
 }
 function loadFile(e){
  const input=e.target,file=input.files?.[0];
