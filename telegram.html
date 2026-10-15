@@ -9,7 +9,43 @@
   <link rel="icon" href="icon.svg">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    .telegram-card { max-width: 560px; margin: 6vh auto 0; }
+    .app-shell { visibility: hidden; }
+    body.show-missing .app-shell { visibility: visible; }
+    .telegram-card {
+      width: calc(100% - 32px);
+      max-width: 560px;
+      box-sizing: border-box;
+      margin: 6vh auto 0;
+      text-align: center;
+    }
+    .telegram-card h2, .telegram-card > .telegram-note { text-align: center; }
+    #missingUserActions {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 0;
+      direction: rtl;
+    }
+    #missingUserActions a {
+      flex: 1 1 50%;
+      min-width: 0;
+      min-height: 48px;
+      box-sizing: border-box;
+      padding: 10px 8px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      line-height: 1.5;
+      border-radius: 0;
+      text-align: center;
+    }
+    #missingUserActions a:first-of-type { border-radius: 0 10px 10px 0; }
+    #missingUserActions a:last-of-type { border-radius: 10px 0 0 10px; }
+    #missingUserActions a + a { margin-right: -1px; }
+    @media (max-width: 360px) {
+      #missingUserActions a { padding-inline: 5px; font-size: .92rem; }
+    }
     .telegram-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
     .telegram-actions a, .telegram-actions button {
       text-decoration:none; display:inline-flex; align-items:center;
@@ -28,7 +64,6 @@
       padding:10px 14px; border-radius:10px; font:inherit;
     }
     .small-note { font-size:.9rem; line-height:1.9; opacity:.75; margin-top:16px; }
-    #missingUserActions p { margin: 0; width: 100%; }
     #missingUserActions a { color: inherit; font-weight: 700; }
   </style>
 </head>
@@ -55,8 +90,8 @@
         </div>
 
         <div id="missingUserActions" class="telegram-actions" hidden>
-          <p class="telegram-note">حساب یافت نشد / <a href="./editor.html">ایجاد حساب</a></p>
-          <button id="showManualButton" class="secondary-button" type="button">ورود با آی‌دی / ورود کاربر دیگر</button>
+          <a class="primary" href="https://abolfazlyazdi.github.io/UNIBAR">ورود با شناسه</a>
+          <a class="secondary-button" href="https://abolfazlyazdi.github.io/UNIBAR/editor.html">ایجاد حساب</a>
         </div>
 
         <form id="manualForm" class="telegram-form" hidden>
@@ -104,7 +139,6 @@
     const formStatus = document.getElementById("formStatus");
     const fallbackActions = document.getElementById("fallbackActions");
     const missingUserActions = document.getElementById("missingUserActions");
-    const showManualButton = document.getElementById("showManualButton");
     const cancelSwitchButton = document.getElementById("cancelSwitchButton");
     const openOwnButton = document.getElementById("openOwnButton");
     const showSwitchButton = document.getElementById("showSwitchButton");
@@ -143,36 +177,24 @@
       : "";
 
     if (!telegramId) {
-      titleEl.textContent = "ورود به UNIBAR";
-      textEl.textContent = "حساب یافت نشد / ایجاد حساب";
+      titleEl.textContent = "کاربر پیدا نشد";
+      textEl.textContent = "";
       missingUserActions.hidden = false;
-      fallbackActions.hidden = false;
+      document.body.classList.add("show-missing");
     } else {
       ownUsername = TELEGRAM_TO_UNIBAR_USER[telegramId] || "";
 
       if (ownUsername && ownUsername !== "PASTE_TELEGRAM_NUMERIC_ID_HERE") {
-        titleEl.textContent = "حساب تلگرام شما شناسایی شد";
-        textEl.textContent = "حساب شما پیدا شد. تا چند لحظه دیگر وارد می‌شوید.";
-        knownActions.hidden = false;
-        openOwnButton.addEventListener("click", () => goToSchedule(ownUsername));
-        showSwitchButton.addEventListener("click", () => {
-          showManualForm("", true);
-        });
-
-        // ورود خودکار با مکث کوتاه؛ کاربر در این فرصت می‌تواند «شناسه دانشجوی دیگر» را انتخاب کند.
-        formStatus.textContent = "";
+        // اگر کاربر شناسایی شد، صفحه‌ی جست‌وجو نمایش داده نمی‌شود و فوراً وارد برنامه می‌شود.
         goToSchedule(ownUsername);
       } else {
-        titleEl.textContent = "حساب یافت نشد";
+        titleEl.textContent = "کاربر پیدا نشد";
         textEl.textContent = "";
         missingUserActions.hidden = false;
         fallbackActions.hidden = true;
+        document.body.classList.add("show-missing");
       }
     }
-
-    showManualButton.addEventListener("click", () => {
-      showManualForm("");
-    });
 
     manualForm.addEventListener("submit", async (event) => {
       event.preventDefault();
