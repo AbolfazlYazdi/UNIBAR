@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111318">
+  <title>ورود تلگرام | UNIBAR</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="icon.svg">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    .telegram-card { max-width: 560px; margin: 6vh auto 0; }
+    .telegram-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+    .telegram-actions a, .telegram-actions button {
+      text-decoration:none; display:inline-flex; align-items:center;
+      justify-content:center; cursor:pointer;
+    }
+    .telegram-note { line-height:1.9; opacity:.88; }
+    .telegram-form { margin-top:18px; display:grid; gap:10px; }
+    .telegram-form[hidden], .telegram-actions[hidden], [hidden] { display:none !important; }
+    .telegram-form input {
+      width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px;
+      border:1px solid var(--border, #555); font:inherit; direction:ltr; text-align:left;
+    }
+    .telegram-status { margin-top:10px; min-height:1.5em; line-height:1.8; }
+    .secondary-button {
+      border:1px solid currentColor; background:transparent; color:inherit;
+      padding:10px 14px; border-radius:10px; font:inherit;
+    }
+    .small-note { font-size:.9rem; line-height:1.9; opacity:.75; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">برنامه دانشگاه</div>
+        <h1>ورود به UNIBAR</h1>
+      </div>
+      <div class="top-actions">
+        <a class="text-link" href="./index.html">صفحه اصلی سایت</a>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="login-card telegram-card">
+        <h2 id="statusTitle">در حال بررسی حساب تلگرام…</h2>
+        <p id="statusText" class="telegram-note">لطفاً چند لحظه صبر کنید.</p>
+
+        <div id="knownUserActions" class="telegram-actions" hidden>
+          <button id="openOwnButton" class="primary" type="button">رفتن به برنامه خودم</button>
+          <button id="showSwitchButton" class="secondary-button" type="button">ورود به شناسه دانشجوی دیگر</button>
+        </div>
+
+        <form id="manualForm" class="telegram-form" hidden>
+          <label for="studentUsername">شناسه کاربری UNIBAR را وارد کنید</label>
+          <input id="studentUsername" name="user" type="text" placeholder="مثلاً a" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="80">
+          <button class="primary" type="submit">باز کردن برنامه این کاربر</button>
+          <button id="cancelSwitchButton" class="secondary-button" type="button" hidden>بازگشت به حساب خودم</button>
+        </form>
+
+        <p id="formStatus" class="telegram-status" role="status" aria-live="polite"></p>
+        <div id="fallbackActions" class="telegram-actions" hidden>
+          <a class="primary" href="./index.html">انتخاب کاربر از سایت</a>
+          <a class="text-link" href="./">صفحه اصلی UNIBAR</a>
+        </div>
+
+        <p class="small-note">
+          می‌توانید موقتاً شناسه دانشجوی دیگری را وارد کنید. این انتخاب فقط برای باز کردن همان صفحه است؛
+          با باز کردن دوباره مینی‌اپ، شناسه پیش‌فرض حساب تلگرام شما دوباره استفاده می‌شود.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /*
+      تنظیم نگاشت:
+      سمت چپ = شناسه عددی تلگرام
+      سمت راست = شناسه دانشجو در UNIBAR (همان مقدار user در schedule.html?user=...)
+
+      نمونه:
+      "123456789": "a",
+      "987654321": "student_02"
+
+      این فایل روی GitHub Pages عمومی است؛ نگاشت محرمانه نیست و احراز هویت امن محسوب نمی‌شود.
+    */
+    const TELEGRAM_TO_UNIBAR_USER = {
+      "PASTE_TELEGRAM_NUMERIC_ID_HERE": "a"
+      // "123456789": "a",
+      // "987654321": "student_02"
+    };
+
+    const BASE = new URL("./", window.location.href);
+    const titleEl = document.getElementById("statusTitle");
+    const textEl = document.getElementById("statusText");
+    const knownActions = document.getElementById("knownUserActions");
+    const manualForm = document.getElementById("manualForm");
+    const usernameInput = document.getElementById("studentUsername");
+    const formStatus = document.getElementById("formStatus");
+    const fallbackActions = document.getElementById("fallbackActions");
+    const cancelSwitchButton = document.getElementById("cancelSwitchButton");
+    const openOwnButton = document.getElementById("openOwnButton");
+    const showSwitchButton = document.getElementById("showSwitchButton");
+
+    let ownUsername = "";
+    let redirectTimer = null;
+
+    function goToSchedule(username) {
+      const cleanUsername = String(username || "").trim();
+      if (!cleanUsername) return;
+
+      const url = new URL("schedule.html", BASE);
+      url.searchParams.set("user", cleanUsername);
+      window.location.assign(url.href);
+    }
+
+    function showManualForm(message, showCancel = false) {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+        redirectTimer = null;
+      }
+      knownActions.hidden = true;
+      manualForm.hidden = false;
+      cancelSwitchButton.hidden = !showCancel;
+      fallbackActions.hidden = true;
+      formStatus.textContent = message || "";
+      usernameInput.focus();
+    }
+
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) tg.ready();
+
+    const telegramId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user
+      ? String(tg.initDataUnsafe.user.id)
+      : "";
+
+    if (!telegramId) {
+      titleEl.textContent = "ورود از داخل تلگرام";
+      textEl.textContent = "برای ورود خودکار، این آدرس را از دکمه Open Mini App در تلگرام باز کنید. اگر فقط می‌خواهید یک برنامه را ببینید، می‌توانید شناسه دانشجو را دستی وارد کنید.";
+      showManualForm("شناسه کاربری سایت را وارد کنید.");
+      fallbackActions.hidden = false;
+    } else {
+      ownUsername = TELEGRAM_TO_UNIBAR_USER[telegramId] || "";
+
+      if (ownUsername && ownUsername !== "PASTE_TELEGRAM_NUMERIC_ID_HERE") {
+        titleEl.textContent = "حساب تلگرام شما شناسایی شد";
+        textEl.textContent = "برنامه هفتگی حساب متصل‌شده آماده است. می‌توانید وارد برنامه خودتان شوید یا موقتاً شناسه دانشجوی دیگری را باز کنید.";
+        knownActions.hidden = false;
+        openOwnButton.addEventListener("click", () => goToSchedule(ownUsername));
+        showSwitchButton.addEventListener("click", () => {
+          showManualForm("شناسه دانشجوی موردنظر را وارد کنید. این انتخاب، اتصال پیش‌فرض تلگرام شما را تغییر نمی‌دهد.", true);
+        });
+
+        // ورود خودکار با مکث کوتاه؛ کاربر در این فرصت می‌تواند «شناسه دانشجوی دیگر» را انتخاب کند.
+        formStatus.textContent = "تا چند ثانیه دیگر برنامه خودتان باز می‌شود؛ برای ورود به حساب دیگر، دکمه مربوطه را بزنید.";
+        redirectTimer = setTimeout(() => goToSchedule(ownUsername), 3500);
+      } else {
+        titleEl.textContent = "حساب تلگرام هنوز متصل نشده است";
+        textEl.textContent = "می‌توانید شناسه کاربری UNIBAR خودتان را دستی وارد کنید. این کار فقط برنامه را باز می‌کند و اتصال دائمی به تلگرام ایجاد نمی‌کند.";
+        showManualForm("شناسه کاربری خودتان را وارد کنید.");
+        fallbackActions.hidden = false;
+      }
+    }
+
+    manualForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const username = usernameInput.value.trim();
+
+      // شناسه در query string قرار می‌گیرد؛ کاراکترهای غیرمجاز URL به‌صورت خودکار encode می‌شوند.
+      if (!username || username.length > 80) {
+        formStatus.textContent = "لطفاً یک شناسه کاربری معتبر وارد کنید.";
+        return;
+      }
+
+      formStatus.textContent = "در حال باز کردن برنامه…";
+      goToSchedule(username);
+    });
+
+    cancelSwitchButton.addEventListener("click", () => {
+      manualForm.hidden = true;
+      knownActions.hidden = false;
+      formStatus.textContent = "";
+      usernameInput.value = "";
+      redirectTimer = setTimeout(() => goToSchedule(ownUsername), 1200);
+    });
+  </script>
+</body>
+</html>
