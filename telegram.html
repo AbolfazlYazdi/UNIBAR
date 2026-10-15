@@ -9,62 +9,58 @@
   <link rel="icon" href="icon.svg">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
+    /* Hide the page until Telegram identity lookup finishes to prevent a flash. */
     .app-shell { visibility: hidden; }
-    body.show-missing .app-shell { visibility: visible; }
+    body.show-page .app-shell { visibility: visible; }
     .telegram-card {
-      width: calc(100% - 32px);
-      max-width: 560px;
+      width: min(560px, calc(100% - 32px));
       box-sizing: border-box;
       margin: 6vh auto 0;
       text-align: center;
     }
     .telegram-card h2, .telegram-card > .telegram-note { text-align: center; }
-    #missingUserActions {
-      display: flex;
-      width: 100%;
+    .telegram-note { line-height: 1.9; opacity: .9; }
+    .telegram-actions { display: flex; justify-content: center; margin-top: 20px; }
+    .telegram-actions[hidden], .telegram-form[hidden], [hidden] { display: none !important; }
+    #showManualButton {
+      display: inline-flex;
+      align-items: center;
       justify-content: center;
-      flex-direction: row;
-      flex-wrap: nowrap;
-      gap: 0;
-      direction: rtl;
-    }
-    #missingUserActions a {
-      flex: 1 1 50%;
-      min-width: 0;
+      width: 100%;
       min-height: 48px;
       box-sizing: border-box;
-      padding: 10px 8px;
-      white-space: normal;
-      overflow-wrap: anywhere;
-      line-height: 1.5;
-      border-radius: 0;
+      padding: 12px 18px;
+      border: 1px solid #2563eb;
+      border-radius: 12px;
+      background: #2563eb;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
       text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
     }
-    #missingUserActions a:first-of-type { border-radius: 0 10px 10px 0; }
-    #missingUserActions a:last-of-type { border-radius: 10px 0 0 10px; }
-    #missingUserActions a + a { margin-right: -1px; }
-    @media (max-width: 360px) {
-      #missingUserActions a { padding-inline: 5px; font-size: .92rem; }
-    }
-    .telegram-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
-    .telegram-actions a, .telegram-actions button {
-      text-decoration:none; display:inline-flex; align-items:center;
-      justify-content:center; cursor:pointer;
-    }
-    .telegram-note { line-height:1.9; opacity:.88; }
-    .telegram-form { margin-top:18px; display:grid; gap:10px; }
-    .telegram-form[hidden], .telegram-actions[hidden], [hidden] { display:none !important; }
+    #showManualButton:focus-visible, .telegram-form button:focus-visible,
+    .telegram-form input:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+    .telegram-form { margin-top: 18px; display: grid; gap: 10px; text-align: right; }
+    .telegram-form label { font-weight: 600; }
     .telegram-form input {
-      width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px;
-      border:1px solid var(--border, #555); font:inherit; direction:ltr; text-align:left;
+      width: 100%; min-height: 46px; box-sizing: border-box; padding: 12px 14px;
+      border-radius: 10px; border: 1px solid var(--border, #777); font: inherit;
+      direction: ltr; text-align: left;
     }
-    .telegram-status { margin-top:10px; min-height:1.5em; line-height:1.8; }
-    .secondary-button {
-      border:1px solid currentColor; background:transparent; color:inherit;
-      padding:10px 14px; border-radius:10px; font:inherit;
+    .telegram-form button {
+      min-height: 46px; padding: 10px 16px; border-radius: 10px;
+      font: inherit; font-weight: 700; cursor: pointer;
     }
-    .small-note { font-size:.9rem; line-height:1.9; opacity:.75; margin-top:16px; }
-    #missingUserActions a { color: inherit; font-weight: 700; }
+    .telegram-form button[type="submit"] { background: #2563eb; border: 1px solid #2563eb; color: #fff; }
+    .telegram-status { margin-top: 10px; min-height: 1.5em; line-height: 1.8; text-align: center; }
+    @media (max-width: 360px) {
+      .telegram-card { width: calc(100% - 24px); margin-top: 4vh; }
+      #showManualButton { padding-inline: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -80,93 +76,54 @@
     </header>
 
     <main class="main">
-      <section class="login-card telegram-card">
+      <section class="login-card telegram-card" aria-live="polite">
         <h2 id="statusTitle">در حال بررسی حساب…</h2>
         <p id="statusText" class="telegram-note">چند لحظه صبر کنید.</p>
 
-        <div id="knownUserActions" class="telegram-actions" hidden>
-          <button id="openOwnButton" class="primary" type="button">ورود به حساب خودم</button>
-          <button id="showSwitchButton" class="secondary-button" type="button">ورود با آی‌دی / ورود کاربر دیگر</button>
-        </div>
-
         <div id="missingUserActions" class="telegram-actions" hidden>
-          <a class="primary" href="https://abolfazlyazdi.github.io/UNIBAR">ورود با شناسه</a>
-          <a class="secondary-button" href="https://abolfazlyazdi.github.io/UNIBAR/editor.html">ایجاد حساب</a>
+          <button id="showManualButton" type="button">ورود با شناسه کاربر</button>
         </div>
 
         <form id="manualForm" class="telegram-form" hidden>
-          <label for="studentUsername">آی‌دی کاربر</label>
-          <input id="studentUsername" name="user" type="text" placeholder="مثلاً a" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="80">
-          <button class="primary" type="submit">ورود</button>
-          <button id="cancelSwitchButton" class="secondary-button" type="button" hidden>بازگشت به حساب خودم</button>
+          <label for="studentUsername">شناسه کاربر در UNIBAR</label>
+          <input id="studentUsername" name="user" type="text" placeholder="شناسه کاربر را وارد کنید" autocomplete="off" autocapitalize="none" spellcheck="false" required maxlength="80">
+          <button type="submit">ورود</button>
         </form>
 
         <p id="formStatus" class="telegram-status" role="status" aria-live="polite"></p>
-        <div id="fallbackActions" class="telegram-actions" hidden>
-          <a class="primary" href="./index.html">انتخاب کاربر از سایت</a>
-          <a class="text-link" href="./">صفحه اصلی UNIBAR</a>
-        </div>
-
-        <p class="small-note" hidden></p>
       </section>
     </main>
   </div>
 
   <script>
-    /*
-      تنظیم نگاشت:
-      سمت چپ = شناسه عددی تلگرام
-      سمت راست = شناسه دانشجو در UNIBAR (همان مقدار user در schedule.html?user=...)
-
-      نمونه:
-      "123456789": "a",
-      "987654321": "student_02"
-
-      این فایل روی GitHub Pages عمومی است؛ نگاشت محرمانه نیست و احراز هویت امن محسوب نمی‌شود.
-    */
+    // نگاشت شناسه عددی تلگرام به شناسه کاربر در UNIBAR.
+    // این نگاشت داخل فایل عمومی است و به‌تنهایی احراز هویت امن محسوب نمی‌شود.
     const TELEGRAM_TO_UNIBAR_USER = {
       "595496154": "a"
-      // "123456789": "a",
-      // "987654321": "student_02"
     };
 
     const BASE = new URL("./", window.location.href);
     const titleEl = document.getElementById("statusTitle");
     const textEl = document.getElementById("statusText");
-    const knownActions = document.getElementById("knownUserActions");
+    const missingActions = document.getElementById("missingUserActions");
+    const showManualButton = document.getElementById("showManualButton");
     const manualForm = document.getElementById("manualForm");
     const usernameInput = document.getElementById("studentUsername");
     const formStatus = document.getElementById("formStatus");
-    const fallbackActions = document.getElementById("fallbackActions");
-    const missingUserActions = document.getElementById("missingUserActions");
-    const cancelSwitchButton = document.getElementById("cancelSwitchButton");
-    const openOwnButton = document.getElementById("openOwnButton");
-    const showSwitchButton = document.getElementById("showSwitchButton");
-
-    let ownUsername = "";
-    let redirectTimer = null;
 
     function goToSchedule(username) {
       const cleanUsername = String(username || "").trim();
-      if (!cleanUsername) return;
-
+      if (!cleanUsername || cleanUsername.length > 80) return;
       const url = new URL("schedule.html", BASE);
       url.searchParams.set("user", cleanUsername);
       window.location.assign(url.href);
     }
 
-    function showManualForm(message, showCancel = false) {
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-        redirectTimer = null;
-      }
-      knownActions.hidden = true;
-      missingUserActions.hidden = true;
-      manualForm.hidden = false;
-      cancelSwitchButton.hidden = !showCancel;
-      fallbackActions.hidden = true;
-      formStatus.textContent = message || "";
-      usernameInput.focus();
+    function showNotFound() {
+      titleEl.textContent = "کاربر پیدا نشد";
+      textEl.textContent = "برای ورود، شناسه کاربر خود را وارد کنید.";
+      missingActions.hidden = false;
+      document.body.classList.add("show-page");
     }
 
     const tg = window.Telegram && window.Telegram.WebApp;
@@ -175,47 +132,31 @@
     const telegramId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user
       ? String(tg.initDataUnsafe.user.id)
       : "";
+    const ownUsername = TELEGRAM_TO_UNIBAR_USER[telegramId] || "";
 
-    if (!telegramId) {
-      titleEl.textContent = "کاربر پیدا نشد";
-      textEl.textContent = "";
-      missingUserActions.hidden = false;
-      document.body.classList.add("show-missing");
+    if (ownUsername) {
+      // کاربر شناخته‌شده مستقیماً به برنامه منتقل می‌شود.
+      goToSchedule(ownUsername);
     } else {
-      ownUsername = TELEGRAM_TO_UNIBAR_USER[telegramId] || "";
-
-      if (ownUsername && ownUsername !== "PASTE_TELEGRAM_NUMERIC_ID_HERE") {
-        // اگر کاربر شناسایی شد، صفحه‌ی جست‌وجو نمایش داده نمی‌شود و فوراً وارد برنامه می‌شود.
-        goToSchedule(ownUsername);
-      } else {
-        titleEl.textContent = "کاربر پیدا نشد";
-        textEl.textContent = "";
-        missingUserActions.hidden = false;
-        fallbackActions.hidden = true;
-        document.body.classList.add("show-missing");
-      }
+      showNotFound();
     }
 
-    manualForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const username = usernameInput.value.trim();
-
-      // شناسه در query string قرار می‌گیرد؛ کاراکترهای غیرمجاز URL به‌صورت خودکار encode می‌شوند.
-      if (!username || username.length > 80) {
-        formStatus.textContent = "لطفاً یک شناسه کاربری معتبر وارد کنید.";
-        return;
-      }
-
-      formStatus.textContent = "در حال باز کردن برنامه…";
-      goToSchedule(username);
+    showManualButton.addEventListener("click", () => {
+      missingActions.hidden = true;
+      manualForm.hidden = false;
+      formStatus.textContent = "";
+      usernameInput.focus();
     });
 
-    cancelSwitchButton.addEventListener("click", () => {
-      manualForm.hidden = true;
-      knownActions.hidden = false;
-      formStatus.textContent = "";
-      usernameInput.value = "";
-      redirectTimer = setTimeout(() => goToSchedule(ownUsername), 1200);
+    manualForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const username = usernameInput.value.trim();
+      if (!username || username.length > 80) {
+        formStatus.textContent = "لطفاً یک شناسه کاربر معتبر وارد کنید.";
+        return;
+      }
+      formStatus.textContent = "در حال باز کردن برنامه…";
+      goToSchedule(username);
     });
   </script>
 </body>
