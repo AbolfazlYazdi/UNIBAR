@@ -1,1 +1,185 @@
-a
+{
+  "version": 2,
+  "username": "p",
+  "displayName": "Parham",
+  "activeTermId": "t1",
+  "terms": [
+    {
+      "id": "t1",
+      "name": "نیمسال اول ۱۴۰۵–۱۴۰۶",
+      "number": 1,
+      "weekAnchor": {
+        "date": "2026-10-03",
+        "parity": "odd"
+      },
+      "courses": [
+        {
+          "id": "k1",
+          "name": "اندیشه اسلامی ۱",
+          "teacher": "حسنعلی سلمانیان",
+          "faculty": "دانشکده علوم",
+          "units": 2,
+          "color": "#111318",
+          "sessions": [
+            {
+              "id": "k1_s1",
+              "day": "sun",
+              "start": "17:00",
+              "end": "19:00",
+              "room": "306",
+              "weeks": "all"
+            }
+          ]
+        },
+        {
+          "id": "k3",
+          "name": "سیستم‌های عامل",
+          "teacher": "مهناز وهمی‌یان",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 3,
+          "color": "#a04cbe",
+          "sessions": [
+            {
+              "id": "k3_s1",
+              "day": "sun",
+              "start": "13:00",
+              "end": "15:00",
+              "room": "215",
+              "weeks": "even"
+            },
+            {
+              "id": "smux4f8riou8f",
+              "day": "tue",
+              "start": "13:00",
+              "end": "15:00",
+              "room": "211",
+              "weeks": "all"
+            }
+          ]
+        },
+        {
+          "id": "k4",
+          "name": "شبکه‌های کامپیوتری",
+          "teacher": "سعید هادی",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 3,
+          "color": "#0b8b68",
+          "sessions": [
+            {
+              "id": "k4_s1",
+              "day": "sat",
+              "start": "15:00",
+              "end": "17:00",
+              "room": "215",
+              "weeks": "all"
+            },
+            {
+              "id": "k4_s2",
+              "day": "mon",
+              "start": "13:00",
+              "end": "15:00",
+              "room": "203",
+              "weeks": "even"
+            }
+          ]
+        },
+        {
+          "id": "k5",
+          "name": "نظریه زبان‌ها و ماشین‌ها",
+          "teacher": "مهدی یعقوبی",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 3,
+          "color": "#c56b19",
+          "sessions": [
+            {
+              "id": "smux6kkuw0nvw",
+              "day": "sat",
+              "start": "10:00",
+              "end": "12:00",
+              "room": "211",
+              "weeks": "even"
+            },
+            {
+              "id": "smux6mgmayvr9",
+              "day": "mon",
+              "start": "08:00",
+              "end": "10:00",
+              "room": "217",
+              "weeks": "all"
+            }
+          ]
+        },
+        {
+          "id": "k6",
+          "name": "آزمایشگاه مدارهای الکتریک و ...",
+          "teacher": "امیر کشمیری",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 1,
+          "color": "#a73d4b",
+          "sessions": [
+            {
+              "id": "k6_s1",
+              "day": "mon",
+              "start": "15:00",
+              "end": "17:00",
+              "room": "215",
+              "weeks": "all"
+            }
+          ]
+        },
+        {
+          "id": "k7",
+          "name": "سیستم‌های نهفته و بی‌درنگ",
+          "teacher": "سعید هادی",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 3,
+          "color": "#4b6478",
+          "sessions": [
+            {
+              "id": "k7_s1",
+              "day": "sat",
+              "start": "13:00",
+              "end": "15:00",
+              "room": "215",
+              "weeks": "all"
+            },
+            {
+              "id": "smux4mkn4hoc7",
+              "day": "mon",
+              "start": "13:00",
+              "end": "15:00",
+              "room": "217",
+              "weeks": "odd"
+            }
+          ]
+        },
+        {
+          "id": "k8",
+          "name": "تحلیل و طراحی نرم‌افزار",
+          "teacher": "مهناز وهمی‌یان",
+          "faculty": "دانشکده مهندسی گرگان",
+          "units": 3,
+          "color": "#6b5aa6",
+          "sessions": [
+            {
+              "id": "k8_s1",
+              "day": "sun",
+              "start": "15:00",
+              "end": "17:00",
+              "room": "215",
+              "weeks": "even"
+            },
+            {
+              "id": "k8_s2",
+              "day": "tue",
+              "start": "15:00",
+              "end": "17:00",
+              "room": "215",
+              "weeks": "all"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
