@@ -6,6 +6,10 @@
       "file": "users/a.json"
     },
     {
+      "username": "p",
+      "file": "users/p.json"
+    },
+    {
       "username": "test",
       "file": "users/test.json"
     }
